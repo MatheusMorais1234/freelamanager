@@ -14,6 +14,7 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { prisma } from "../lib/prisma.js";
+import { onlyDigits, isValidDocument } from "../lib/document.js";
 import { validate } from "../middlewares/validate.js";
 import { authenticate } from "../middlewares/auth.js";
 
@@ -22,22 +23,99 @@ const router = Router();
 // Aplica autenticacao a TODAS as rotas deste arquivo de uma vez.
 router.use(authenticate);
 
-const clientSchema = z.object({
-  name: z.string().trim().min(2, "Nome muito curto").max(120),
-  email: z.email("E-mail invalido").optional().or(z.literal("")),
-  phone: z.string().trim().max(30).optional().or(z.literal("")),
-  company: z.string().trim().max(120).optional().or(z.literal("")),
-});
+// Siglas das 27 unidades federativas - lista fechada evita "SPP".
+const UF = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
+  "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
+
+// Campo de texto opcional: aceita ausencia ou string vazia.
+const optionalText = (max) => z.string().trim().max(max).optional().or(z.literal(""));
+
+const clientSchema = z
+  .object({
+    type: z.enum(["PERSON", "COMPANY"]).default("PERSON"),
+
+    // Identificacao
+    name: z.string().trim().min(2, "Nome muito curto").max(120),
+    company: optionalText(120),
+    document: optionalText(18),
+    stateRegistration: optionalText(20),
+    birthDate: z.coerce.date().optional().nullable().or(z.literal("")),
+
+    // Contato
+    email: z.email("E-mail invalido").optional().or(z.literal("")),
+    phone: optionalText(20),
+    mobile: optionalText(20),
+    website: optionalText(180),
+
+    // Endereco
+    zipCode: optionalText(9),
+    street: optionalText(160),
+    number: optionalText(20),
+    complement: optionalText(80),
+    district: optionalText(80),
+    city: optionalText(80),
+    state: z.enum(UF).optional().or(z.literal("")),
+
+    notes: optionalText(2000),
+  })
+  // O documento so pode ser conferido DEPOIS de saber o tipo,
+  // por isso a checagem fica aqui e nao no campo isolado.
+  .refine((data) => isValidDocument(data.document, data.type), {
+    message: "Documento invalido para o tipo escolhido",
+    path: ["document"],
+  })
+  .refine((data) => !(data.zipCode && onlyDigits(data.zipCode).length !== 8), {
+    message: "CEP deve ter 8 digitos",
+    path: ["zipCode"],
+  });
 
 // Converte "" em null, para o banco guardar ausencia de verdade
-// em vez de string vazia.
+// em vez de string vazia. Documento e CEP sao gravados apenas
+// com digitos, para nao duplicar cadastro por causa da mascara.
 function normalize(data) {
+  const text = (v) => (v ? String(v).trim() : null);
+  const digits = (v) => (onlyDigits(v) ? onlyDigits(v) : null);
+
   return {
-    name: data.name,
-    email: data.email || null,
-    phone: data.phone || null,
-    company: data.company || null,
+    type: data.type || "PERSON",
+
+    name: data.name.trim(),
+    company: text(data.company),
+    document: digits(data.document),
+    stateRegistration: text(data.stateRegistration),
+    birthDate: data.birthDate ? new Date(data.birthDate) : null,
+
+    email: text(data.email),
+    phone: text(data.phone),
+    mobile: text(data.mobile),
+    website: text(data.website),
+
+    zipCode: digits(data.zipCode),
+    street: text(data.street),
+    number: text(data.number),
+    complement: text(data.complement),
+    district: text(data.district),
+    city: text(data.city),
+    state: text(data.state),
+
+    notes: text(data.notes),
   };
+}
+
+// O indice unico (userId + document) faz o Postgres recusar um
+// CPF/CNPJ repetido. O Prisma sinaliza isso com o codigo P2002 -
+// traduzimos para uma mensagem que o formulario sabe exibir.
+function handleDuplicate(err, res, next) {
+  if (err?.code === "P2002") {
+    return res.status(409).json({
+      error: "Ja existe um cliente com este CPF/CNPJ",
+      fields: { document: "Documento ja cadastrado" },
+    });
+  }
+  return next(err);
 }
 
 // ------------------------------------------------------------
@@ -73,7 +151,7 @@ router.post("/", validate(clientSchema), async (req, res, next) => {
 
     return res.status(201).json({ client });
   } catch (err) {
-    next(err);
+    return handleDuplicate(err, res, next);
   }
 });
 
@@ -116,7 +194,7 @@ router.put("/:id", validate(clientSchema), async (req, res, next) => {
     const client = await prisma.client.findUnique({ where: { id: req.params.id } });
     return res.json({ client });
   } catch (err) {
-    next(err);
+    return handleDuplicate(err, res, next);
   }
 });
 

@@ -10,6 +10,8 @@ Projeto full-stack construído do zero: API REST autenticada por JWT e uma SPA e
 | Camada | Tecnologia |
 |---|---|
 | Frontend | React 19, Vite 8, React Router 7 |
+| Interface | Tailwind CSS 4, shadcn/ui (Radix), lucide-react |
+| Gráficos | Recharts |
 | Backend | Node.js 24, Express 5 |
 | Banco | PostgreSQL 17 + Prisma 7 (ORM) |
 | Autenticação | JWT + bcrypt |
@@ -21,10 +23,18 @@ Projeto full-stack construído do zero: API REST autenticada por JWT e uma SPA e
 
 - Cadastro e login com senha protegida por hash (bcrypt)
 - Sessão via JWT com expiração
-- CRUD completo de clientes
+- **Cadastro completo de clientes**: pessoa física ou jurídica, CPF/CNPJ com
+  validação de dígito verificador, inscrição estadual, endereço completo com
+  busca automática por CEP, múltiplos contatos e observações
 - CRUD completo de contratos, com status, valor e prazo
-- Painel com totais por status e valores a receber / recebidos
+- Painel com gráficos de distribuição por status e faturamento mensal
+- Alerta de prazos vencendo ou em atraso
+- Busca por nome, empresa, cidade ou documento (com ou sem pontuação)
 - **Isolamento total entre usuários**: toda consulta é filtrada pelo dono
+
+> **Login social:** os botões de Google e Facebook nas telas de entrada são
+> demonstração visual — aparecem desabilitados e marcados como "em breve".
+> Não há OAuth implementado por trás deles.
 
 ---
 
@@ -45,10 +55,13 @@ freelancer/
 │   └── .env.example
 └── frontend/
     ├── src/
-    │   ├── lib/                 cliente HTTP e formatação
+    │   ├── lib/                 cliente HTTP, formatação/máscaras, busca de CEP
     │   ├── context/             estado de autenticação
-    │   ├── components/          layout e modal
+    │   ├── components/
+    │   │   ├── ui/              componentes do shadcn/ui
+    │   │   └── ...              layout, marca, formulário de cliente, estados
     │   ├── pages/               login, cadastro, painel, clientes, contratos
+    │   ├── index.css            tokens do tema (grafite + âmbar)
     │   └── App.jsx              rotas
     └── .env.example
 ```
@@ -133,3 +146,15 @@ Status possíveis de um contrato: `PENDING`, `ACTIVE`, `COMPLETED`, `CANCELLED`.
   estão cadastrados.
 - **Segredos só em variáveis de ambiente.** `.env` fora do Git desde o commit
   inicial.
+- **Documento, telefone e CEP gravados só com dígitos.** A máscara existe
+  apenas na tela. Sem isso, `123.456.789-00` e `12345678900` virariam dois
+  cadastros diferentes, e a busca teria que adivinhar a pontuação.
+- **CPF/CNPJ conferido pelo dígito verificador**, no backend e no frontend.
+  Checar só a quantidade de dígitos deixaria passar erro de digitação.
+- **Unicidade composta (`userId` + `document`)**: o mesmo CPF não se repete
+  para um freelancer, mas dois freelancers podem atender o mesmo cliente.
+- **Tema em tokens do shadcn/ui.** Os componentes leem `bg-background`,
+  `text-muted-foreground` etc., nunca cores fixas — trocar a marca inteira é
+  mexer só em `frontend/src/index.css`.
+- **`AlertDialog` para exclusão**, não `Dialog`: ação destrutiva exige escolha
+  explícita e prende o foco.
