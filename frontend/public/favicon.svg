@@ -1,5 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#f0a92e"/>
-  <text x="32" y="43" font-family="system-ui, sans-serif" font-size="30"
-        font-weight="800" fill="#1a1206" text-anchor="middle">FM</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="8" fill="#F0A92E"/>
+  <g transform="translate(4 4) scale(1)" fill="none" stroke="#2A1B06" stroke-width="2.4" stroke-linecap="round">
+    <path d="M4.5 9.5A2.5 2.5 0 0 1 7 7h10a2.5 2.5 0 0 1 2.5 2.5v9A2.5 2.5 0 0 1 17 21H7a2.5 2.5 0 0 1-2.5-2.5v-9Z" fill="#2A1B06" stroke="none" opacity="0.3"/>
+    <path d="M8 5.5A2.5 2.5 0 0 1 10.5 3h6A2.5 2.5 0 0 1 19 5.5"/>
+    <path d="M9.5 12.5h6M9.5 16h3.5"/>
+  </g>
 </svg>

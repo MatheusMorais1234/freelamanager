@@ -1,218 +1,401 @@
-import { useEffect, useState } from "react";
-import { api } from "../lib/api.js";
-import Modal from "../components/Modal.jsx";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  Building2,
+  Mail,
+  MoreHorizontal,
+  Phone,
+  Plus,
+  Search,
+  User,
+  Users,
+} from "lucide-react";
 
-const EMPTY = { name: "", email: "", phone: "", company: "" };
+import { api } from "@/lib/api.js";
+import ClientForm, { EMPTY_CLIENT } from "@/components/ClientForm.jsx";
+import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/States.jsx";
+import {
+  formatDocument,
+  formatPhone,
+  formatZip,
+  onlyDigits,
+  toInputDate,
+} from "@/lib/format.js";
+
+import { Badge } from "@/components/ui/badge.jsx";
+import { Button } from "@/components/ui/button.jsx";
+import { Card } from "@/components/ui/card.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu.jsx";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet.jsx";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog.jsx";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table.jsx";
 
 export default function Clients() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
 
-  const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState(null); // null = criando
-  const [form, setForm] = useState(EMPTY);
-  const [error, setError] = useState("");
+  const [form, setForm] = useState(EMPTY_CLIENT);
+  const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function load() {
-    const data = await api.get("/clients");
-    setClients(data.clients);
-    setLoading(false);
-  }
+  const [toDelete, setToDelete] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const data = await api.get("/clients");
+      setClients(data.clients);
+    } catch (err) {
+      setLoadError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   function openCreate() {
     setEditing(null);
-    setForm(EMPTY);
-    setError("");
-    setOpen(true);
+    setForm(EMPTY_CLIENT);
+    setFormError("");
+    setSheetOpen(true);
   }
 
   function openEdit(client) {
     setEditing(client);
+    // O banco guarda null e so digitos; o formulario precisa de
+    // string e da mascara aplicada.
     setForm({
-      name: client.name,
-      // o banco guarda null; o input precisa de string
-      email: client.email || "",
-      phone: client.phone || "",
+      type: client.type || "PERSON",
+      name: client.name || "",
       company: client.company || "",
+      document: client.document
+        ? formatDocument(client.document, client.type)
+        : "",
+      stateRegistration: client.stateRegistration || "",
+      birthDate: toInputDate(client.birthDate),
+      email: client.email || "",
+      phone: client.phone ? formatPhone(client.phone) : "",
+      mobile: client.mobile ? formatPhone(client.mobile) : "",
+      website: client.website || "",
+      zipCode: client.zipCode ? formatZip(client.zipCode) : "",
+      street: client.street || "",
+      number: client.number || "",
+      complement: client.complement || "",
+      district: client.district || "",
+      city: client.city || "",
+      state: client.state || "",
+      notes: client.notes || "",
     });
-    setError("");
-    setOpen(true);
+    setFormError("");
+    setSheetOpen(true);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+    setFormError("");
     setBusy(true);
 
-    try {
-      if (editing) await api.put(`/clients/${editing.id}`, form);
-      else await api.post("/clients", form);
+    // Tira as mascaras antes de enviar: o backend grava so digitos.
+    const payload = {
+      ...form,
+      document: onlyDigits(form.document),
+      phone: onlyDigits(form.phone),
+      mobile: onlyDigits(form.mobile),
+      zipCode: onlyDigits(form.zipCode),
+      birthDate: form.birthDate || null,
+    };
 
-      setOpen(false);
+    try {
+      if (editing) await api.put(`/clients/${editing.id}`, payload);
+      else await api.post("/clients", payload);
+
+      setSheetOpen(false);
+      toast.success(editing ? "Cliente atualizado" : "Cliente cadastrado");
       await load();
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleDelete(client) {
-    const ok = window.confirm(
-      `Excluir "${client.name}"? Os contratos deste cliente tambem serao apagados.`
-    );
-    if (!ok) return;
+  async function confirmDelete() {
+    const client = toDelete;
+    setToDelete(null);
 
-    await api.delete(`/clients/${client.id}`);
-    await load();
+    try {
+      await api.delete(`/clients/${client.id}`);
+      toast.success(`"${client.name}" foi excluído`);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    }
   }
 
   // Filtro roda no navegador: a lista e pequena, nao vale
-  // uma ida ao servidor a cada tecla digitada.
-  const filtered = clients.filter((c) =>
-    `${c.name} ${c.company || ""} ${c.email || ""}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  // uma ida ao servidor a cada tecla digitada. A busca tambem
+  // olha o documento sem mascara, para "12345678900" achar
+  // quem foi cadastrado como "123.456.789-00".
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return clients;
 
-  if (loading) return <div className="loading">Carregando...</div>;
+    const digits = onlyDigits(term);
+
+    return clients.filter((c) => {
+      const haystack = [c.name, c.company, c.email, c.city]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        haystack.includes(term) ||
+        (digits && c.document?.includes(digits)) ||
+        (digits && c.mobile?.includes(digits)) ||
+        (digits && c.phone?.includes(digits))
+      );
+    });
+  }, [clients, search]);
 
   return (
     <>
-      <header className="page-head">
-        <div>
-          <h1>Clientes</h1>
-          <p className="muted">{clients.length} cadastrado(s)</p>
-        </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          + Novo cliente
-        </button>
-      </header>
+      <PageHeader
+        title="Clientes"
+        description={
+          loading
+            ? "Carregando..."
+            : `${clients.length} cadastrado(s)${
+                search ? ` · ${filtered.length} no filtro` : ""
+              }`
+        }
+      >
+        <Button onClick={openCreate} className="gap-2">
+          <Plus className="size-4" />
+          Novo cliente
+        </Button>
+      </PageHeader>
 
-      <div className="toolbar">
-        <input
-          className="search"
-          placeholder="Buscar por nome, empresa ou e-mail..."
+      <div className="relative mb-4 max-w-sm">
+        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Buscar por nome, empresa, CPF/CNPJ..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      <section className="panel">
-        {filtered.length === 0 ? (
-          <div className="empty">
-            <p>{clients.length === 0 ? "Nenhum cliente ainda." : "Nada encontrado."}</p>
-            {clients.length === 0 && (
-              <button className="btn btn-primary" onClick={openCreate}>
-                Cadastrar o primeiro
-              </button>
-            )}
-          </div>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Empresa</th>
-                <th>Contato</th>
-                <th>Contratos</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <strong>{c.name}</strong>
-                  </td>
-                  <td className="muted">{c.company || "-"}</td>
-                  <td className="muted">
-                    {c.email || "-"}
-                    {c.phone && <div className="small">{c.phone}</div>}
-                  </td>
-                  <td>
-                    <span className="pill">{c._count.contracts}</span>
-                  </td>
-                  <td className="row-actions">
-                    <button className="btn btn-ghost" onClick={() => openEdit(c)}>
-                      Editar
-                    </button>
-                    <button className="btn btn-danger" onClick={() => handleDelete(c)}>
-                      Excluir
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      {loadError ? (
+        <ErrorState message={loadError} onRetry={load} />
+      ) : (
+        <Card className="overflow-hidden py-0">
+          {loading ? (
+            <TableSkeleton cols={5} />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title={clients.length === 0 ? "Nenhum cliente ainda" : "Nada encontrado"}
+              description={
+                clients.length === 0
+                  ? "Cadastre seu primeiro cliente para começar a registrar contratos."
+                  : "Tente outro termo de busca."
+              }
+            >
+              {clients.length === 0 && (
+                <Button onClick={openCreate} className="gap-2">
+                  <Plus className="size-4" />
+                  Cadastrar o primeiro
+                </Button>
+              )}
+            </EmptyState>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Cidade</TableHead>
+                    <TableHead className="text-center">Contratos</TableHead>
+                    <TableHead className="w-12" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                            {c.type === "COMPANY" ? (
+                              <Building2 className="size-4" />
+                            ) : (
+                              <User className="size-4" />
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{c.name}</p>
+                            {c.company && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {c.company}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
 
-      {open && (
-        <Modal
-          title={editing ? "Editar cliente" : "Novo cliente"}
-          onClose={() => setOpen(false)}
-        >
-          <form onSubmit={handleSubmit}>
-            {error && <div className="alert">{error}</div>}
+                      <TableCell className="tabular text-muted-foreground">
+                        {formatDocument(c.document, c.type)}
+                      </TableCell>
 
-            <label>
-              Nome *
-              <input
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </label>
+                      <TableCell>
+                        <div className="space-y-0.5 text-sm text-muted-foreground">
+                          {c.email && (
+                            <p className="flex items-center gap-1.5 truncate">
+                              <Mail className="size-3 shrink-0" />
+                              {c.email}
+                            </p>
+                          )}
+                          {(c.mobile || c.phone) && (
+                            <p className="tabular flex items-center gap-1.5">
+                              <Phone className="size-3 shrink-0" />
+                              {formatPhone(c.mobile || c.phone)}
+                            </p>
+                          )}
+                          {!c.email && !c.mobile && !c.phone && "—"}
+                        </div>
+                      </TableCell>
 
-            <label>
-              Empresa
-              <input
-                value={form.company}
-                onChange={(e) => setForm({ ...form, company: e.target.value })}
-              />
-            </label>
+                      <TableCell className="text-muted-foreground">
+                        {c.city ? `${c.city}${c.state ? `/${c.state}` : ""}` : "—"}
+                      </TableCell>
 
-            <div className="form-row">
-              <label>
-                E-mail
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
-              </label>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="tabular">
+                          {c._count.contracts}
+                        </Badge>
+                      </TableCell>
 
-              <label>
-                Telefone
-                <input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </label>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="Ações">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(c)}>
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setToDelete(c)}
+                            >
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-
-            <div className="modal-foot">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setOpen(false)}
-              >
-                Cancelar
-              </button>
-              <button className="btn btn-primary" disabled={busy}>
-                {busy ? "Salvando..." : "Salvar"}
-              </button>
-            </div>
-          </form>
-        </Modal>
+          )}
+        </Card>
       )}
+
+      {/* ---------------- Formulario ---------------- */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{editing ? "Editar cliente" : "Novo cliente"}</SheetTitle>
+            <SheetDescription>
+              Apenas o nome é obrigatório. O resto você completa quando tiver.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="px-4 pb-6">
+            <ClientForm
+              form={form}
+              setForm={setForm}
+              onSubmit={handleSubmit}
+              onCancel={() => setSheetOpen(false)}
+              busy={busy}
+              error={formError}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ---------------- Confirmacao de exclusao ---------------- */}
+      {/* AlertDialog (e nao Dialog) porque a acao e destrutiva:
+          ele prende o foco e exige uma escolha explicita. */}
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir "{toDelete?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {toDelete?._count.contracts > 0 ? (
+                <>
+                  Os <strong>{toDelete._count.contracts} contrato(s)</strong> deste
+                  cliente também serão apagados. Esta ação não pode ser desfeita.
+                </>
+              ) : (
+                "Esta ação não pode ser desfeita."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

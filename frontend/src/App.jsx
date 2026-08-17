@@ -6,14 +6,29 @@
 // ============================================================
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import Layout from "./components/Layout.jsx";
+import Brand from "./components/Brand.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Clients from "./pages/Clients.jsx";
 import Contracts from "./pages/Contracts.jsx";
+
+// Tela cheia mostrada enquanto o app confere se o token salvo
+// ainda vale. Dura um piscar de olhos em rede boa.
+function SessionLoading() {
+  return (
+    <div className="auth-bg grid min-h-svh place-items-center gap-4">
+      <div className="flex flex-col items-center gap-4">
+        <Brand size="lg" />
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    </div>
+  );
+}
 
 // Porteiro das telas internas: sem usuario logado, manda pro login.
 // ATENCAO: isto e conveniencia de interface, NAO seguranca.
@@ -22,7 +37,7 @@ import Contracts from "./pages/Contracts.jsx";
 function Private({ children }) {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="loading full">Carregando...</div>;
+  if (loading) return <SessionLoading />;
   if (!user) return <Navigate to="/login" replace />;
 
   return children;
@@ -32,7 +47,7 @@ function Private({ children }) {
 function PublicOnly({ children }) {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="loading full">Carregando...</div>;
+  if (loading) return <SessionLoading />;
   if (user) return <Navigate to="/" replace />;
 
   return children;

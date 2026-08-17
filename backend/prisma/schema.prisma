@@ -29,6 +29,14 @@ enum ContractStatus {
   CANCELLED // cancelado
 }
 
+// Pessoa Fisica (CPF) ou Pessoa Juridica (CNPJ). Define quais
+// campos do cadastro fazem sentido: PF tem data de nascimento,
+// PJ tem nome fantasia e inscricao estadual.
+enum ClientType {
+  PERSON
+  COMPANY
+}
+
 // ------------------------------------------------------------
 // USER - o freelancer que usa o sistema
 // ------------------------------------------------------------
@@ -51,19 +59,54 @@ model User {
 // CLIENT - as empresas/pessoas para quem o freelancer trabalha
 // ------------------------------------------------------------
 model Client {
-  id      String  @id @default(uuid())
-  userId  String  @map("user_id")
+  id     String     @id @default(uuid())
+  userId String     @map("user_id")
+  type   ClientType @default(PERSON)
+
+  // --- Identificacao ---
+  // name  = nome completo (PF) ou razao social (PJ)
+  // trade = nome fantasia, so faz sentido para PJ
   name    String  @db.VarChar(120)
-  email   String? @db.VarChar(180)
-  phone   String? @db.VarChar(30)
   company String? @db.VarChar(120)
 
+  // Documento guardado SO COM DIGITOS (11 = CPF, 14 = CNPJ).
+  // Gravar sem pontuacao evita que "123.456.789-00" e
+  // "12345678900" virem dois cadastros diferentes; a mascara
+  // e aplicada apenas na exibicao.
+  document String? @db.VarChar(14)
+
+  // Inscricao estadual (PJ) e data de nascimento (PF)
+  stateRegistration String?   @map("state_registration") @db.VarChar(20)
+  birthDate         DateTime? @map("birth_date") @db.Date
+
+  // --- Contato ---
+  email   String? @db.VarChar(180)
+  phone   String? @db.VarChar(20)
+  mobile  String? @db.VarChar(20)
+  website String? @db.VarChar(180)
+
+  // --- Endereco ---
+  zipCode    String? @map("zip_code") @db.VarChar(8)
+  street     String? @db.VarChar(160)
+  number     String? @db.VarChar(20)
+  complement String? @db.VarChar(80)
+  district   String? @db.VarChar(80)
+  city       String? @db.VarChar(80)
+  state      String? @db.VarChar(2)
+
+  notes String?
+
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Lado "muitos": cada Client pertence a exatamente um User.
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   contracts Contract[]
 
+  // Um mesmo CPF/CNPJ nao pode se repetir para o MESMO usuario,
+  // mas dois freelancers diferentes podem ter o mesmo cliente.
+  // Por isso a unicidade e composta (userId + document).
+  @@unique([userId, document], name: "client_user_document")
   @@index([userId])
   @@map("clients")
 }
