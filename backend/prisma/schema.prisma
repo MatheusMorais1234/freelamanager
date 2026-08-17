@@ -1,0 +1,93 @@
+// ============================================================
+// FreelaManager - Schema do banco de dados
+// ============================================================
+// Este arquivo e a "planta baixa" do banco. A partir dele o Prisma:
+//   1. gera o SQL que cria/altera as tabelas  -> prisma migrate
+//   2. gera o codigo JS com autocomplete      -> prisma generate
+// ============================================================
+
+// COMO O CODIGO JS E GERADO
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+// QUAL BANCO ESTAMOS USANDO
+// A URL de conexao NAO fica aqui: ela vem do .env, via prisma.config.ts
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------------
+// ENUM: lista fechada de valores permitidos para o status
+// ------------------------------------------------------------
+enum ContractStatus {
+  PENDING // aguardando aprovacao do cliente
+  ACTIVE // em andamento
+  COMPLETED // entregue e pago
+  CANCELLED // cancelado
+}
+
+// ------------------------------------------------------------
+// USER - o freelancer que usa o sistema
+// ------------------------------------------------------------
+model User {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(120)
+  email        String   @unique @db.VarChar(180)
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Lado "um" do relacionamento: um User tem muitos Clients e Contracts.
+  // Estes campos NAO viram colunas no banco - sao atalhos de leitura.
+  clients   Client[]
+  contracts Contract[]
+
+  @@map("users")
+}
+
+// ------------------------------------------------------------
+// CLIENT - as empresas/pessoas para quem o freelancer trabalha
+// ------------------------------------------------------------
+model Client {
+  id      String  @id @default(uuid())
+  userId  String  @map("user_id")
+  name    String  @db.VarChar(120)
+  email   String? @db.VarChar(180)
+  phone   String? @db.VarChar(30)
+  company String? @db.VarChar(120)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Lado "muitos": cada Client pertence a exatamente um User.
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contracts Contract[]
+
+  @@index([userId])
+  @@map("clients")
+}
+
+// ------------------------------------------------------------
+// CONTRACT - os trabalhos contratados
+// ------------------------------------------------------------
+model Contract {
+  id          String         @id @default(uuid())
+  clientId    String         @map("client_id")
+  userId      String         @map("user_id")
+  title       String         @db.VarChar(160)
+  description String?
+  amount      Decimal        @db.Decimal(12, 2)
+  status      ContractStatus @default(PENDING)
+  dueDate     DateTime?      @map("due_date") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([status])
+  @@map("contracts")
+}
