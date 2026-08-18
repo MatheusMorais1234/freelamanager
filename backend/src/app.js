@@ -11,6 +11,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.routes.js";
 import clientsRoutes from "./routes/clients.routes.js";
 import contractsRoutes from "./routes/contracts.routes.js";
+import paymentsRoutes from "./routes/payments.routes.js";
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.get("/health", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/clients", clientsRoutes);
 app.use("/contracts", contractsRoutes);
+app.use("/payments", paymentsRoutes);
 
 // ------------------------------------------------------------
 // TRATAMENTO DE ERROS

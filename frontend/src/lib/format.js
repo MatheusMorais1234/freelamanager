@@ -148,6 +148,41 @@ export const STATUS_LABEL = {
 
 export const STATUS_LIST = ["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"];
 
+// ---------- Pagamentos ----------
+
+// O status de uma parcela nao vem gravado no banco: o backend o
+// calcula comparando a data de recebimento, o vencimento e hoje.
+// Aqui so damos nome a cada um dos tres casos.
+export const PAYMENT_STATUS_LABEL = {
+  PENDING: "A receber",
+  PAID: "Recebido",
+  OVERDUE: "Atrasado",
+};
+
+export const PAYMENT_STATUS_LIST = ["PENDING", "PAID", "OVERDUE"];
+
+export const PAYMENT_METHOD_LABEL = {
+  PIX: "Pix",
+  TRANSFER: "Transferência",
+  BOLETO: "Boleto",
+  CARD: "Cartão",
+  CASH: "Dinheiro",
+  OTHER: "Outro",
+};
+
+export const PAYMENT_METHOD_LIST = ["PIX", "TRANSFER", "BOLETO", "CARD", "CASH", "OTHER"];
+
+/**
+ * Quanto de um contrato ja foi recebido, de 0 a 100.
+ * Contrato de valor zero devolve 100 - senao a divisao daria
+ * NaN e a barra de progresso sumiria da tela.
+ */
+export function paidPercent(paid, total) {
+  const t = Number(total ?? 0);
+  if (t <= 0) return 100;
+  return Math.min(100, Math.round((Number(paid ?? 0) / t) * 100));
+}
+
 export const CLIENT_TYPE_LABEL = {
   PERSON: "Pessoa física",
   COMPANY: "Pessoa jurídica",
