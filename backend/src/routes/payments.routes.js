@@ -15,6 +15,9 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { validate } from "../middlewares/validate.js";
 import { authenticate } from "../middlewares/auth.js";
+// A regra de "a receber / recebido / atrasado" mora numa lib
+// propria porque o detalhe do contrato tambem precisa dela.
+import { serializePayment, startOfToday } from "../lib/payment-status.js";
 
 const router = Router();
 router.use(authenticate);
@@ -52,40 +55,17 @@ const settleSchema = z.object({
   method: z.enum(METHODS, { error: "Forma de pagamento invalida" }).optional().nullable(),
 });
 
-// ------------------------------------------------------------
-// STATUS DERIVADO
-// ------------------------------------------------------------
-// O status NAO existe no banco: ele nasce da comparacao entre
-// paidAt, dueDate e hoje. Guardar o status daria margem a
-// inconsistencia - uma parcela vencida ontem continuaria
-// gravada como "pendente" ate alguem rodar alguma rotina.
-// Derivando, ela vira "atrasada" sozinha na virada do dia.
-function statusOf(payment, today = startOfToday()) {
-  if (payment.paidAt) return "PAID";
-  return payment.dueDate < today ? "OVERDUE" : "PENDING";
-}
-
-/** Hoje a meia-noite em UTC - as datas sao gravadas como @db.Date. */
-function startOfToday() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-}
-
-// Decimal vira STRING no JSON, pela mesma razao dos contratos:
-// ponto flutuante perde centavos.
+// Sobre a parcela ja serializada (valor em string + status
+// derivado), so falta converter o Decimal do contrato que vem
+// junto na listagem.
 function serialize(payment) {
+  const data = serializePayment(payment);
+
+  if (!payment.contract) return data;
+
   return {
-    ...payment,
-    amount: payment.amount.toString(),
-    status: statusOf(payment),
-    ...(payment.contract
-      ? {
-          contract: {
-            ...payment.contract,
-            amount: payment.contract.amount.toString(),
-          },
-        }
-      : {}),
+    ...data,
+    contract: { ...payment.contract, amount: payment.contract.amount.toString() },
   };
 }
 

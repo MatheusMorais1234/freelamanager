@@ -14,6 +14,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { validate } from "../middlewares/validate.js";
 import { authenticate } from "../middlewares/auth.js";
+import { serializePayment } from "../lib/payment-status.js";
 
 const router = Router();
 router.use(authenticate);
@@ -47,10 +48,15 @@ function serialize(contract) {
  *
  * Devolve um Map de contractId -> total recebido (string).
  */
-async function paidByContract(userId) {
+async function paidByContract(userId, contractId) {
   const rows = await prisma.payment.groupBy({
     by: ["contractId"],
-    where: { userId, paidAt: { not: null } },
+    where: {
+      userId,
+      paidAt: { not: null },
+      // O detalhe de um contrato passa o id e soma so aquele.
+      ...(contractId ? { contractId } : {}),
+    },
     _sum: { amount: true },
   });
 
@@ -179,17 +185,23 @@ router.get("/:id", async (req, res, next) => {
 
     if (!contract) return res.status(404).json({ error: "Contrato nao encontrado" });
 
-    const payments = contract.payments.map((p) => ({
-      ...p,
-      amount: p.amount.toString(),
-    }));
+    // As parcelas saem daqui com o mesmo formato de /payments -
+    // inclusive o status derivado -, para a tela poder reusar o
+    // mesmo selo colorido nos dois lugares.
+    const payments = contract.payments.map((p) => serializePayment(p));
 
-    const paidAmount = contract.payments
-      .filter((p) => p.paidAt)
-      .reduce((sum, p) => sum + Number(p.amount), 0);
+    // O total recebido sai do MESMO caminho da listagem, e nao de
+    // um reduce aqui: somar Decimal em JavaScript devolveria
+    // coisas como 6666.679999999999, e o formato do campo
+    // mudaria de tela para tela.
+    const paid = await paidByContract(req.userId, contract.id);
 
     return res.json({
-      contract: { ...serialize(contract), payments, paidAmount: paidAmount.toFixed(2) },
+      contract: {
+        ...serialize(contract),
+        payments,
+        paidAmount: paid.get(contract.id) ?? "0",
+      },
     });
   } catch (err) {
     next(err);
