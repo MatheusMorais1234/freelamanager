@@ -6,6 +6,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -16,6 +17,7 @@ import {
   Search,
   Undo2,
   Wallet,
+  X,
 } from "lucide-react";
 
 import { api } from "@/lib/api.js";
@@ -141,6 +143,12 @@ function DueHint({ dueDate, status }) {
 }
 
 export default function Payments() {
+  // O detalhe de um contrato manda para ca com ?contract=<id>.
+  // Guardar o recorte na URL (e nao so no estado) faz o link ser
+  // compartilhavel e o botao "voltar" do navegador funcionar.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const contractFilter = searchParams.get("contract");
+
   const [payments, setPayments] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -191,7 +199,8 @@ export default function Payments() {
     setEditing(null);
     setForm({
       ...EMPTY,
-      contractId: contracts[0]?.id || "",
+      // Vindo do detalhe de um contrato, ele ja vem escolhido.
+      contractId: contractFilter || contracts[0]?.id || "",
       // Vencimento sugerido: hoje. Melhor do que campo vazio -
       // na maioria das vezes basta ajustar o dia.
       dueDate: toInputDate(new Date()),
@@ -301,6 +310,7 @@ export default function Payments() {
     const term = search.trim().toLowerCase();
 
     return payments.filter((p) => {
+      if (contractFilter && p.contractId !== contractFilter) return false;
       if (filter !== "ALL" && p.status !== filter) return false;
       if (!term) return true;
 
@@ -310,20 +320,33 @@ export default function Payments() {
         .toLowerCase()
         .includes(term);
     });
-  }, [payments, filter, search]);
+  }, [payments, filter, search, contractFilter]);
+
+  // Nome do contrato do recorte, para o aviso dizer de qual
+  // trabalho sao estas parcelas.
+  const filteredContract = useMemo(
+    () => contracts.find((c) => c.id === contractFilter),
+    [contracts, contractFilter]
+  );
 
   const filteredTotal = useMemo(
     () => filtered.reduce((sum, p) => sum + Number(p.amount), 0),
     [filtered]
   );
 
+  // As contagens das abas seguem o recorte por contrato, senao
+  // a aba diria "Recebido (9)" e a tabela mostraria 2.
   const counts = useMemo(() => {
-    const base = { ALL: payments.length };
+    const scoped = contractFilter
+      ? payments.filter((p) => p.contractId === contractFilter)
+      : payments;
+
+    const base = { ALL: scoped.length };
     for (const s of PAYMENT_STATUS_LIST) {
-      base[s] = payments.filter((p) => p.status === s).length;
+      base[s] = scoped.filter((p) => p.status === s).length;
     }
     return base;
-  }, [payments]);
+  }, [payments, contractFilter]);
 
   const noContracts = !loading && contracts.length === 0;
 
@@ -376,6 +399,29 @@ export default function Payments() {
             tone="destructive"
           />
         </section>
+      )}
+
+      {/* Recorte vindo do detalhe de um contrato. Fica visivel e
+          com saida a um clique - filtro escondido e a maneira
+          mais rapida de fazer alguem achar que sumiram dados. */}
+      {contractFilter && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
+          <p className="min-w-0 truncate text-sm">
+            Parcelas de{" "}
+            <span className="font-medium">
+              {filteredContract?.title || "um contrato"}
+            </span>
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 gap-1.5"
+            onClick={() => setSearchParams({})}
+          >
+            <X className="size-3.5" />
+            Ver todas
+          </Button>
+        </div>
       )}
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

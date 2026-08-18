@@ -4,6 +4,7 @@ import { FileText, Loader2, MoreHorizontal, Plus, Search } from "lucide-react";
 
 import { api } from "@/lib/api.js";
 import StatusBadge from "@/components/StatusBadge.jsx";
+import ContractDetail from "@/components/ContractDetail.jsx";
 import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/States.jsx";
 import {
   daysUntil,
@@ -151,6 +152,8 @@ export default function Contracts() {
   const [busy, setBusy] = useState(false);
 
   const [toDelete, setToDelete] = useState(null);
+  // Id do contrato aberto no painel de detalhe (null = fechado).
+  const [detailId, setDetailId] = useState(null);
   // Guarda o id da linha cujo status esta sendo trocado, para
   // desabilitar so aquele menu e nao a tabela inteira.
   const [updatingId, setUpdatingId] = useState(null);
@@ -373,7 +376,16 @@ export default function Contracts() {
                   {filtered.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="max-w-xs">
-                        <p className="truncate font-medium">{c.title}</p>
+                        {/* Clicar no titulo abre o detalhe: e o
+                            gesto que a pessoa ja tenta antes de
+                            procurar o menu de tres pontinhos. */}
+                        <button
+                          type="button"
+                          onClick={() => setDetailId(c.id)}
+                          className="block w-full truncate text-left font-medium hover:text-primary hover:underline"
+                        >
+                          {c.title}
+                        </button>
                         {c.description && (
                           <p className="truncate text-xs text-muted-foreground">
                             {c.description}
@@ -445,6 +457,9 @@ export default function Contracts() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setDetailId(c.id)}>
+                              Ver detalhes
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEdit(c)}>
                               Editar
                             </DropdownMenuItem>
@@ -583,6 +598,12 @@ export default function Contracts() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* ---------------- Detalhe do contrato ---------------- */}
+      <ContractDetail
+        contractId={detailId}
+        onOpenChange={(open) => !open && setDetailId(null)}
+      />
 
       {/* ---------------- Confirmacao de exclusao ---------------- */}
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
