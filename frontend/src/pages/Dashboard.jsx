@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import {
+  AlertCircle,
   ArrowRight,
   CalendarClock,
   FileText,
@@ -20,11 +21,15 @@ import {
   STATUS_LABEL,
   STATUS_LIST,
 } from "@/lib/format.js";
-import StatusBadge, { STATUS_STYLE } from "@/components/StatusBadge.jsx";
+import StatusBadge, {
+  PaymentStatusBadge,
+  STATUS_STYLE,
+} from "@/components/StatusBadge.jsx";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/States.jsx";
 
 import { Button } from "@/components/ui/button.jsx";
 import { Skeleton } from "@/components/ui/skeleton.jsx";
+import { Alert, AlertDescription } from "@/components/ui/alert.jsx";
 import {
   Card,
   CardContent,
@@ -78,6 +83,8 @@ export default function Dashboard() {
 
   const [stats, setStats] = useState(null);
   const [contracts, setContracts] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -88,14 +95,18 @@ export default function Dashboard() {
     setError("");
 
     try {
-      // Promise.all dispara as duas chamadas EM PARALELO.
+      // Promise.all dispara as chamadas EM PARALELO.
       // Uma depois da outra levaria o dobro do tempo.
-      const [s, c] = await Promise.all([
+      const [s, c, sum, p] = await Promise.all([
         api.get("/contracts/stats"),
         api.get("/contracts"),
+        api.get("/payments/summary"),
+        api.get("/payments"),
       ]);
       setStats(s.stats);
       setContracts(c.contracts);
+      setSummary(sum.summary);
+      setPayments(p.payments);
     } catch (err) {
       // Sem este catch, uma API fora do ar deixaria "stats" em
       // null e a tela quebraria ao ler stats.byStatus.
@@ -121,30 +132,33 @@ export default function Dashboard() {
     })).filter((d) => d.count > 0);
   }, [stats]);
 
-  // Faturamento dos ultimos 6 meses, contando so o que foi
-  // concluido - contrato pendente ainda nao virou receita.
+  // Faturamento dos ultimos 6 meses. A soma vem PRONTA do
+  // backend (/payments/summary), agrupada pela data em que cada
+  // parcela foi recebida - dinheiro que entrou de verdade, e nao
+  // contrato marcado como concluido.
   const monthlyData = useMemo(() => {
-    const months = [];
-    const now = new Date();
+    if (!summary) return [];
 
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({
-        key: `${d.getFullYear()}-${d.getMonth()}`,
+    return summary.monthly.map((m) => {
+      // "2026-08" -> objeto Date -> "ago"
+      const [year, month] = m.key.split("-").map(Number);
+      const d = new Date(year, month - 1, 1);
+
+      return {
+        key: m.key,
         label: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
-        total: 0,
-      });
-    }
+        total: Number(m.total),
+      };
+    });
+  }, [summary]);
 
-    for (const c of contracts) {
-      if (c.status !== "COMPLETED") continue;
-      const d = new Date(c.createdAt);
-      const bucket = months.find((m) => m.key === `${d.getFullYear()}-${d.getMonth()}`);
-      if (bucket) bucket.total += Number(c.amount);
-    }
-
-    return months;
-  }, [contracts]);
+  // As proximas parcelas a receber, atrasadas primeiro. A lista
+  // ja vem do backend ordenada por vencimento; aqui so tiramos
+  // as recebidas e cortamos nas cinco primeiras.
+  const upcomingPayments = useMemo(
+    () => payments.filter((p) => p.status !== "PAID").slice(0, 5),
+    [payments]
+  );
 
   // Prazos que vencem nos proximos 30 dias ou ja venceram,
   // ignorando o que ja foi concluido ou cancelado.
@@ -179,9 +193,12 @@ export default function Dashboard() {
     );
   }
 
-  const aReceber =
-    Number(stats.byStatus.PENDING.total) + Number(stats.byStatus.ACTIVE.total);
-  const recebido = Number(stats.byStatus.COMPLETED.total);
+  // Dinheiro agora vem dos PAGAMENTOS, nao do status do
+  // contrato: um contrato "em andamento" pode ja ter metade
+  // paga, e um "concluido" pode nao ter recebido nada ainda.
+  const recebido = Number(summary.paid.total);
+  const aReceber = Number(summary.pending.total) + Number(summary.overdue.total);
+  const atrasado = Number(summary.overdue.total);
   const firstName = user?.name?.split(" ")[0];
 
   return (
@@ -205,17 +222,35 @@ export default function Dashboard() {
           icon={Wallet}
           label="A receber"
           value={formatMoney(aReceber)}
-          hint={`${stats.byStatus.PENDING.count + stats.byStatus.ACTIVE.count} em aberto`}
+          hint={`${summary.pending.count + summary.overdue.count} parcela(s) em aberto`}
           tone="primary"
         />
         <StatCard
           icon={TrendingUp}
           label="Recebido"
           value={formatMoney(recebido)}
-          hint={`${stats.byStatus.COMPLETED.count} concluído(s)`}
+          hint={`${summary.paid.count} parcela(s) paga(s)`}
           tone="success"
         />
       </section>
+
+      {/* Atraso e a unica coisa do painel que pede acao imediata,
+          entao ganha destaque proprio em vez de virar mais um
+          numero no meio dos outros. */}
+      {atrasado > 0 && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertCircle className="size-4" />
+          <AlertDescription className="flex flex-wrap items-center gap-x-2">
+            <span>
+              <strong className="tabular">{formatMoney(atrasado)}</strong> em{" "}
+              {summary.overdue.count} parcela(s) vencida(s).
+            </span>
+            <Link to="/payments" className="font-medium underline underline-offset-4">
+              Ver pagamentos
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <section className="mt-4 grid gap-4 lg:grid-cols-5">
         {/* ---------- Rosca por status ---------- */}
@@ -281,7 +316,7 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="text-base">Faturamento</CardTitle>
             <CardDescription>
-              Contratos concluídos nos últimos 6 meses
+              Pagamentos recebidos nos últimos 6 meses
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -321,9 +356,13 @@ export default function Dashboard() {
         </Card>
       </section>
 
-      {/* ---------- Prazos proximos ---------- */}
+      {/* ---------- O que precisa de atencao ---------- */}
+      {/* Duas listas lado a lado, porque sao coisas diferentes:
+          uma cobra ENTREGA (prazo do contrato), a outra cobra
+          DINHEIRO (vencimento da parcela). */}
+      <section className="mt-4 grid gap-4 lg:grid-cols-2">
       {upcoming.length > 0 && (
-        <Card className="mt-4">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <CalendarClock className="size-4 text-primary" />
@@ -364,6 +403,52 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      {upcomingPayments.length > 0 && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div className="space-y-1.5">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Wallet className="size-4 text-primary" />
+                Próximos recebimentos
+              </CardTitle>
+              <CardDescription>Parcelas em aberto, vencendo primeiro</CardDescription>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/payments">Ver todos</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {upcomingPayments.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {p.description || "Parcela"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {p.contract.client.name} · {p.contract.title}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <div className="text-right">
+                    <p className="tabular text-sm font-medium">
+                      {formatMoney(p.amount)}
+                    </p>
+                    <p className="tabular text-xs text-muted-foreground">
+                      {formatDate(p.dueDate)}
+                    </p>
+                  </div>
+                  <PaymentStatusBadge status={p.status} />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+      </section>
 
       {/* ---------- Contratos recentes ---------- */}
       <Card className="mt-4 overflow-hidden">

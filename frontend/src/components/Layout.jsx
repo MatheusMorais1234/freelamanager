@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Wallet, LogOut, Menu } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext.jsx";
 import Brand from "@/components/Brand.jsx";
@@ -24,6 +24,7 @@ const NAV = [
   { to: "/", label: "Painel", icon: LayoutDashboard, end: true },
   { to: "/clients", label: "Clientes", icon: Users },
   { to: "/contracts", label: "Contratos", icon: FileText },
+  { to: "/payments", label: "Pagamentos", icon: Wallet },
 ];
 
 function NavItems({ onNavigate }) {

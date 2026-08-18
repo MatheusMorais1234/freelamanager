@@ -65,5 +65,8 @@ export const api = {
   get: (path) => request("GET", path),
   post: (path, body) => request("POST", path, body),
   put: (path, body) => request("PUT", path, body),
+  // PATCH altera PARTE do recurso (ex.: so dar baixa numa
+  // parcela). PUT substituiria o registro inteiro.
+  patch: (path, body) => request("PATCH", path, body),
   delete: (path) => request("DELETE", path),
 };

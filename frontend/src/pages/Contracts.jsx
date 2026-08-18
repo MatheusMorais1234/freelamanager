@@ -9,6 +9,7 @@ import {
   daysUntil,
   formatDate,
   formatMoney,
+  paidPercent,
   STATUS_LABEL,
   STATUS_LIST,
   toInputDate,
@@ -73,6 +74,43 @@ const EMPTY = {
   status: "PENDING",
   dueDate: "",
 };
+
+/**
+ * Quanto do contrato ja foi recebido, em barra e em texto.
+ * O numero vem pronto do backend (campo paidAmount), somado a
+ * partir das parcelas com data de recebimento.
+ */
+function PaidProgress({ paid, total }) {
+  const value = Number(paid ?? 0);
+  if (value <= 0) return null;
+
+  const percent = paidPercent(value, total);
+  const done = percent >= 100;
+
+  return (
+    <div className="mt-1 flex items-center justify-end gap-2">
+      {/* aria-hidden: a barra e enfeite; o texto ao lado ja diz
+          a mesma coisa para quem usa leitor de tela. */}
+      <span
+        className="h-1.5 w-16 overflow-hidden rounded-full bg-muted"
+        aria-hidden="true"
+      >
+        <span
+          className={cn("block h-full rounded-full", done ? "bg-success" : "bg-primary")}
+          style={{ width: `${percent}%` }}
+        />
+      </span>
+      <span
+        className={cn(
+          "tabular text-xs",
+          done ? "text-success" : "text-muted-foreground"
+        )}
+      >
+        {done ? "quitado" : `${formatMoney(value)} recebido`}
+      </span>
+    </div>
+  );
+}
 
 /** Aviso de prazo ao lado da data, so quando ainda importa. */
 function DueHint({ dueDate, status }) {
@@ -350,8 +388,9 @@ export default function Contracts() {
                         )}
                       </TableCell>
 
-                      <TableCell className="tabular text-right font-medium">
-                        {formatMoney(c.amount)}
+                      <TableCell className="text-right">
+                        <p className="tabular font-medium">{formatMoney(c.amount)}</p>
+                        <PaidProgress paid={c.paidAmount} total={c.amount} />
                       </TableCell>
 
                       <TableCell>

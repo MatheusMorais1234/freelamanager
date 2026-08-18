@@ -27,8 +27,12 @@ Projeto full-stack construído do zero: API REST autenticada por JWT e uma SPA e
   validação de dígito verificador, inscrição estadual, endereço completo com
   busca automática por CEP, múltiplos contatos e observações
 - CRUD completo de contratos, com status, valor e prazo
+- **Controle de pagamentos**: cada contrato se divide em parcelas com
+  vencimento, valor e forma de recebimento. Parcelamento automático em até 60x,
+  baixa em um clique direto na tabela e totais de recebido / a receber /
+  atrasado
 - Painel com gráficos de distribuição por status e faturamento mensal
-- Alerta de prazos vencendo ou em atraso
+- Alerta de prazos vencendo ou em atraso, e de parcelas vencidas
 - Busca por nome, empresa, cidade ou documento (com ou sem pontuação)
 - **Isolamento total entre usuários**: toda consulta é filtrada pelo dono
 
@@ -49,7 +53,7 @@ freelancer/
 │   ├── src/
 │   │   ├── lib/prisma.js        conexão única com o banco
 │   │   ├── middlewares/         autenticação e validação
-│   │   ├── routes/              auth, clients, contracts
+│   │   ├── routes/              auth, clients, contracts, payments
 │   │   ├── app.js               montagem do Express
 │   │   └── server.js            ponto de entrada
 │   └── .env.example
@@ -60,7 +64,8 @@ freelancer/
     │   ├── components/
     │   │   ├── ui/              componentes do shadcn/ui
     │   │   └── ...              layout, marca, formulário de cliente, estados
-    │   ├── pages/               login, cadastro, painel, clientes, contratos
+    │   ├── pages/               login, cadastro, painel, clientes,
+    │   │                         contratos, pagamentos
     │   ├── index.css            tokens do tema (grafite + âmbar)
     │   └── App.jsx              rotas
     └── .env.example
@@ -125,9 +130,21 @@ Rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`.
 | POST | `/contracts` | ✔ | Cria |
 | GET | `/contracts/:id` | ✔ | Detalhe |
 | PUT | `/contracts/:id` | ✔ | Atualiza |
-| DELETE | `/contracts/:id` | ✔ | Remove |
+| DELETE | `/contracts/:id` | ✔ | Remove (apaga as parcelas junto) |
+| GET | `/payments` | ✔ | Lista (`?contractId=`, `?clientId=`, `?status=`) |
+| GET | `/payments/summary` | ✔ | Recebido, a receber, atrasado e faturamento mensal |
+| POST | `/payments` | ✔ | Cria uma parcela ou um parcelamento inteiro |
+| GET | `/payments/:id` | ✔ | Detalhe |
+| PUT | `/payments/:id` | ✔ | Atualiza |
+| PATCH | `/payments/:id/settle` | ✔ | Dá baixa no recebimento (ou desfaz) |
+| DELETE | `/payments/:id` | ✔ | Remove |
 
 Status possíveis de um contrato: `PENDING`, `ACTIVE`, `COMPLETED`, `CANCELLED`.
+
+Status de um pagamento: `PENDING` (a receber), `PAID` (recebido) e `OVERDUE`
+(atrasado). Ele **não existe no banco** — é calculado na leitura.
+
+Formas de pagamento: `PIX`, `TRANSFER`, `BOLETO`, `CARD`, `CASH`, `OTHER`.
 
 ---
 
@@ -158,3 +175,17 @@ Status possíveis de um contrato: `PENDING`, `ACTIVE`, `COMPLETED`, `CANCELLED`.
   mexer só em `frontend/src/index.css`.
 - **`AlertDialog` para exclusão**, não `Dialog`: ação destrutiva exige escolha
   explícita e prende o foco.
+- **Status do pagamento é derivado, não gravado.** A tabela guarda só `paid_at`;
+  "atrasado" nasce de comparar o vencimento com a data de hoje. Se o status
+  fosse uma coluna, uma parcela vencida na virada da meia-noite continuaria
+  marcada como pendente até alguém rodar alguma rotina — e ainda seria possível
+  gravar "pago" sem data de pagamento.
+- **Parcelamento dividido em centavos inteiros.** `10.000,01` em 3x vira
+  `3.333,35 + 3.333,33 + 3.333,33`. Dividir em ponto flutuante e arredondar
+  cada parcela faria a soma não fechar com o total.
+- **Vencimento mensal que respeita o fim do mês.** Uma parcela do dia 31 cai em
+  28/02 e volta para 31/03 — somar 30 dias iria escorregando a data a cada mês.
+- **Total recebido por contrato vem de um `groupBy`**, não de uma consulta por
+  linha da lista: 50 contratos são 2 idas ao banco, não 51 (o problema "N+1").
+- **Faturamento do painel conta pagamento recebido**, não contrato concluído.
+  Contrato marcado como entregue pode ainda não ter sido pago.

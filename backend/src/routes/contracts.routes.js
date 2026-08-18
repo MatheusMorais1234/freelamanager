@@ -37,6 +37,26 @@ function serialize(contract) {
   return { ...contract, amount: contract.amount.toString() };
 }
 
+/**
+ * Quanto ja foi recebido em cada contrato.
+ *
+ * Um groupBy resolve a lista INTEIRA numa consulta so. A
+ * alternativa obvia - percorrer os contratos perguntando o total
+ * de cada um - faria uma ida ao banco por linha (o problema
+ * classico do "N+1"): 50 contratos, 51 consultas.
+ *
+ * Devolve um Map de contractId -> total recebido (string).
+ */
+async function paidByContract(userId) {
+  const rows = await prisma.payment.groupBy({
+    by: ["contractId"],
+    where: { userId, paidAt: { not: null } },
+    _sum: { amount: true },
+  });
+
+  return new Map(rows.map((r) => [r.contractId, (r._sum.amount ?? 0).toString()]));
+}
+
 // ------------------------------------------------------------
 // GET /contracts
 // ------------------------------------------------------------
@@ -44,17 +64,27 @@ router.get("/", async (req, res, next) => {
   try {
     const { status, clientId } = req.query;
 
-    const contracts = await prisma.contract.findMany({
-      where: {
-        userId: req.userId,
-        ...(STATUSES.includes(status) ? { status } : {}),
-        ...(clientId ? { clientId } : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      include: { client: { select: { id: true, name: true, company: true } } },
-    });
+    const [contracts, paid] = await Promise.all([
+      prisma.contract.findMany({
+        where: {
+          userId: req.userId,
+          ...(STATUSES.includes(status) ? { status } : {}),
+          ...(clientId ? { clientId } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        include: { client: { select: { id: true, name: true, company: true } } },
+      }),
+      paidByContract(req.userId),
+    ]);
 
-    return res.json({ contracts: contracts.map(serialize) });
+    // "paidAmount" acompanha cada contrato para a tela mostrar
+    // quanto ja entrou sem precisar de uma segunda chamada.
+    return res.json({
+      contracts: contracts.map((c) => ({
+        ...serialize(c),
+        paidAmount: paid.get(c.id) ?? "0",
+      })),
+    });
   } catch (err) {
     next(err);
   }
@@ -137,14 +167,30 @@ router.post("/", validate(contractSchema), async (req, res, next) => {
 // ------------------------------------------------------------
 router.get("/:id", async (req, res, next) => {
   try {
+    // O detalhe traz as parcelas junto: quem abre um contrato
+    // quer ver o dinheiro dele, e nao clicar de novo para isso.
     const contract = await prisma.contract.findFirst({
       where: { id: req.params.id, userId: req.userId },
-      include: { client: { select: { id: true, name: true, company: true } } },
+      include: {
+        client: { select: { id: true, name: true, company: true } },
+        payments: { orderBy: { dueDate: "asc" } },
+      },
     });
 
     if (!contract) return res.status(404).json({ error: "Contrato nao encontrado" });
 
-    return res.json({ contract: serialize(contract) });
+    const payments = contract.payments.map((p) => ({
+      ...p,
+      amount: p.amount.toString(),
+    }));
+
+    const paidAmount = contract.payments
+      .filter((p) => p.paidAt)
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    return res.json({
+      contract: { ...serialize(contract), payments, paidAmount: paidAmount.toFixed(2) },
+    });
   } catch (err) {
     next(err);
   }

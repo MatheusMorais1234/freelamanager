@@ -29,6 +29,20 @@ enum ContractStatus {
   CANCELLED // cancelado
 }
 
+// ------------------------------------------------------------
+// Como o pagamento entrou. Lista fechada para o relatorio
+// poder agrupar - se fosse texto livre, "Pix", "PIX" e "pix"
+// virariam tres formas de pagamento diferentes.
+// ------------------------------------------------------------
+enum PaymentMethod {
+  PIX
+  TRANSFER // transferencia bancaria / TED
+  BOLETO
+  CARD // cartao de credito ou debito
+  CASH // dinheiro
+  OTHER
+}
+
 // Pessoa Fisica (CPF) ou Pessoa Juridica (CNPJ). Define quais
 // campos do cadastro fazem sentido: PF tem data de nascimento,
 // PJ tem nome fantasia e inscricao estadual.
@@ -51,6 +65,7 @@ model User {
   // Estes campos NAO viram colunas no banco - sao atalhos de leitura.
   clients   Client[]
   contracts Contract[]
+  payments  Payment[]
 
   @@map("users")
 }
@@ -126,11 +141,60 @@ model Contract {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Apagar o contrato apaga as parcelas junto (onDelete no Payment):
+  // parcela sem contrato nao significa nada.
+  payments Payment[]
 
   @@index([userId])
   @@index([clientId])
   @@index([status])
   @@map("contracts")
+}
+
+// ------------------------------------------------------------
+// PAYMENT - as parcelas de um contrato
+// ------------------------------------------------------------
+// Um contrato tem um valor total; um pagamento e cada pedaco
+// desse valor que foi combinado para uma data. Sem esta tabela
+// o sistema so saberia "quanto foi contratado", nunca "quanto
+// ja entrou no caixa".
+model Payment {
+  id         String @id @default(uuid())
+  contractId String @map("contract_id")
+  userId     String @map("user_id")
+
+  // Rotulo curto da parcela: "Entrada", "Parcela 2/3", "Final".
+  description String? @db.VarChar(160)
+
+  amount Decimal @db.Decimal(12, 2)
+
+  // Quando foi combinado receber.
+  dueDate DateTime @map("due_date") @db.Date
+
+  // Quando de fato entrou. NULO = ainda nao recebido.
+  // Este campo unico substitui um "status" gravado: guardar o
+  // status daria margem a inconsistencia (marcado como pago sem
+  // data, ou com data e marcado como pendente). Aqui a data e a
+  // unica verdade, e o status e DERIVADO dela na leitura.
+  paidAt DateTime? @map("paid_at") @db.Date
+
+  // Como o dinheiro entrou. So faz sentido junto com paidAt.
+  method PaymentMethod?
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([contractId])
+  // Buscar "o que vence nos proximos dias" e a consulta mais
+  // comum da tela de pagamentos - por isso a data tem indice.
+  @@index([dueDate])
+  @@map("payments")
 }
