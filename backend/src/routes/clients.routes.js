@@ -89,8 +89,12 @@ function normalize(data) {
     birthDate: data.birthDate ? new Date(data.birthDate) : null,
 
     email: text(data.email),
-    phone: text(data.phone),
-    mobile: text(data.mobile),
+    // Telefone entra so com digitos, igual ao documento e ao
+    // CEP: a mascara e coisa de tela. Gravar "(11) 98765-4321"
+    // faria o mesmo numero digitado de outro jeito virar outro
+    // valor, e a busca teria que adivinhar a pontuacao.
+    phone: digits(data.phone),
+    mobile: digits(data.mobile),
     website: text(data.website),
 
     zipCode: digits(data.zipCode),
@@ -116,6 +120,68 @@ function handleDuplicate(err, res, next) {
     });
   }
   return next(err);
+}
+
+/**
+ * Situacao financeira de UM cliente, somada no banco.
+ *
+ * Sao duas consultas fixas, nao uma por contrato: um groupBy
+ * por contrato (para a coluna "recebido" de cada linha) e um
+ * agrupamento por situacao da parcela (para os totais do topo).
+ * Percorrer os contratos perguntando o total de cada um seria o
+ * problema do "N+1" - 20 contratos, 21 idas ao banco.
+ *
+ * "Atrasado" nasce da comparacao com hoje, nao de uma coluna:
+ * a mesma regra derivada usada no resto do sistema.
+ */
+async function financeiroDoCliente(userId, contractIds) {
+  if (contractIds.length === 0) {
+    return {
+      paidByContract: new Map(),
+      summary: { paid: "0", pending: "0", overdue: "0" },
+    };
+  }
+
+  const doCliente = { userId, contractId: { in: contractIds } };
+
+  // Hoje a zero hora: uma parcela que vence HOJE ainda nao esta
+  // atrasada, so amanha.
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const [porContrato, recebido, aVencer, atrasado] = await Promise.all([
+    prisma.payment.groupBy({
+      by: ["contractId"],
+      where: { ...doCliente, paidAt: { not: null } },
+      _sum: { amount: true },
+    }),
+    prisma.payment.aggregate({
+      where: { ...doCliente, paidAt: { not: null } },
+      _sum: { amount: true },
+    }),
+    prisma.payment.aggregate({
+      where: { ...doCliente, paidAt: null, dueDate: { gte: hoje } },
+      _sum: { amount: true },
+    }),
+    prisma.payment.aggregate({
+      where: { ...doCliente, paidAt: null, dueDate: { lt: hoje } },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  return {
+    paidByContract: new Map(
+      porContrato.map((r) => [r.contractId, (r._sum.amount ?? 0).toString()])
+    ),
+    // Valores viajam como string, igual ao resto da API: o
+    // Decimal do banco nao cabe em ponto flutuante sem perder
+    // centavos.
+    summary: {
+      paid: (recebido._sum.amount ?? 0).toString(),
+      pending: (aVencer._sum.amount ?? 0).toString(),
+      overdue: (atrasado._sum.amount ?? 0).toString(),
+    },
+  };
 }
 
 // ------------------------------------------------------------
@@ -169,7 +235,22 @@ router.get("/:id", async (req, res, next) => {
 
     if (!client) return res.status(404).json({ error: "Cliente nao encontrado" });
 
-    return res.json({ client });
+    // Quanto ja entrou por contrato e o resumo do cliente.
+    const { paidByContract, summary } = await financeiroDoCliente(
+      req.userId,
+      client.contracts.map((c) => c.id)
+    );
+
+    return res.json({
+      client: {
+        ...client,
+        contracts: client.contracts.map((c) => ({
+          ...c,
+          paid: paidByContract.get(c.id) ?? "0",
+        })),
+      },
+      summary,
+    });
   } catch (err) {
     next(err);
   }

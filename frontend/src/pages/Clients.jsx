@@ -13,6 +13,7 @@ import {
 
 import { api } from "@/lib/api.js";
 import ClientForm, { EMPTY_CLIENT } from "@/components/ClientForm.jsx";
+import ClientDetail from "@/components/ClientDetail.jsx";
 import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/States.jsx";
 import {
   formatDocument,
@@ -72,6 +73,9 @@ export default function Clients() {
   const [busy, setBusy] = useState(false);
 
   const [toDelete, setToDelete] = useState(null);
+
+  // Qual cliente esta aberto no painel de detalhe (null = nenhum).
+  const [detailId, setDetailId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -263,7 +267,15 @@ export default function Clients() {
                   {filtered.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell>
-                        <div className="flex items-center gap-3">
+                        {/* O nome e um botao, nao a linha inteira:
+                            clique em qualquer lugar da linha
+                            atrapalharia selecionar o texto do
+                            e-mail ou do documento. */}
+                        <button
+                          type="button"
+                          onClick={() => setDetailId(c.id)}
+                          className="flex w-full items-center gap-3 text-left"
+                        >
                           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
                             {c.type === "COMPANY" ? (
                               <Building2 className="size-4" />
@@ -272,14 +284,16 @@ export default function Clients() {
                             )}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate font-medium">{c.name}</p>
+                            <p className="truncate font-medium hover:text-primary hover:underline">
+                              {c.name}
+                            </p>
                             {c.company && (
                               <p className="truncate text-xs text-muted-foreground">
                                 {c.company}
                               </p>
                             )}
                           </div>
-                        </div>
+                        </button>
                       </TableCell>
 
                       <TableCell className="tabular text-muted-foreground">
@@ -322,6 +336,9 @@ export default function Clients() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setDetailId(c.id)}>
+                              Ver detalhes
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEdit(c)}>
                               Editar
                             </DropdownMenuItem>
@@ -343,6 +360,19 @@ export default function Clients() {
           )}
         </Card>
       )}
+
+      {/* ---------------- Detalhe ---------------- */}
+      <ClientDetail
+        clientId={detailId}
+        onOpenChange={(open) => !open && setDetailId(null)}
+        // "Editar cadastro" fecha o detalhe e abre o MESMO
+        // formulario da tela, em vez de manter dois formularios
+        // de cliente para dar manutencao.
+        onEdit={(client) => {
+          setDetailId(null);
+          openEdit(client);
+        }}
+      />
 
       {/* ---------------- Formulario ---------------- */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
