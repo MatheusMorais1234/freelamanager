@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { FileText, Loader2, MoreHorizontal, Plus, Search } from "lucide-react";
+import { FileText, Loader2, MoreHorizontal, Plus, Search, X } from "lucide-react";
 
 import { api } from "@/lib/api.js";
 import StatusBadge from "@/components/StatusBadge.jsx";
@@ -145,6 +146,11 @@ export default function Contracts() {
   const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
 
+  // ?client=<id> recorta a lista em um cliente so. Quem chega
+  // pelo detalhe do cliente cai aqui ja filtrado.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const clientFilter = searchParams.get("client");
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
@@ -262,13 +268,23 @@ export default function Contracts() {
     const term = search.trim().toLowerCase();
 
     return contracts.filter((c) => {
+      // Recorte vindo da URL (?client=), usado pelo detalhe do
+      // cliente. Fica na URL, e nao no estado, para o endereco
+      // poder ser copiado e recarregado sem perder o filtro.
+      if (clientFilter && c.clientId !== clientFilter) return false;
       if (filter !== "ALL" && c.status !== filter) return false;
       if (!term) return true;
       return `${c.title} ${c.client.name} ${c.client.company || ""}`
         .toLowerCase()
         .includes(term);
     });
-  }, [contracts, filter, search]);
+  }, [contracts, filter, search, clientFilter]);
+
+  // Nome do cliente do recorte, para dizer na tela qual e.
+  const filteredClientName = useMemo(
+    () => clients.find((c) => c.id === clientFilter)?.name,
+    [clients, clientFilter]
+  );
 
   const total = useMemo(
     () => filtered.reduce((sum, c) => sum + Number(c.amount), 0),
@@ -309,6 +325,27 @@ export default function Contracts() {
             precisa estar ligado a alguém.
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Recorte por cliente sempre visivel e com saida a um
+          clique: filtro que o usuario nao ve e armadilha - ele
+          conclui que os outros contratos sumiram. */}
+      {clientFilter && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <span className="min-w-0 truncate">
+            Mostrando apenas os contratos de{" "}
+            <strong>{filteredClientName || "um cliente"}</strong>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto gap-1.5"
+            onClick={() => setSearchParams({}, { replace: true })}
+          >
+            <X className="size-3.5" />
+            Limpar
+          </Button>
+        </div>
       )}
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
