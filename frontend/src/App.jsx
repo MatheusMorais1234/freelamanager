@@ -17,6 +17,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Clients from "./pages/Clients.jsx";
 import Contracts from "./pages/Contracts.jsx";
 import Payments from "./pages/Payments.jsx";
+import Reports from "./pages/Reports.jsx";
 
 // Tela cheia mostrada enquanto o app confere se o token salvo
 // ainda vale. Dura um piscar de olhos em rede boa.
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/contracts" element={<Contracts />} />
             <Route path="/payments" element={<Payments />} />
+            <Route path="/reports" element={<Reports />} />
           </Route>
 
           {/* Qualquer outro endereco volta para a home */}

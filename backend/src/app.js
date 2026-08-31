@@ -12,6 +12,7 @@ import authRoutes from "./routes/auth.routes.js";
 import clientsRoutes from "./routes/clients.routes.js";
 import contractsRoutes from "./routes/contracts.routes.js";
 import paymentsRoutes from "./routes/payments.routes.js";
+import reportsRoutes from "./routes/reports.routes.js";
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use("/auth", authRoutes);
 app.use("/clients", clientsRoutes);
 app.use("/contracts", contractsRoutes);
 app.use("/payments", paymentsRoutes);
+app.use("/reports", reportsRoutes);
 
 // ------------------------------------------------------------
 // TRATAMENTO DE ERROS
