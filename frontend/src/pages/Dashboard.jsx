@@ -51,26 +51,48 @@ import {
   TableRow,
 } from "@/components/ui/table.jsx";
 
+// Cartao de indicador do topo do painel.
+// O "tone" tinge numero, icone e o fio de cor da borda superior
+// ao mesmo tempo - assim a leitura do cartao e imediata, sem
+// precisar ler o rotulo para saber se e dinheiro que entrou ou
+// dinheiro que falta entrar.
+const STAT_TONE = {
+  default: {
+    value: "text-foreground",
+    icon: "bg-muted text-muted-foreground",
+    rail: "bg-border",
+  },
+  primary: {
+    value: "text-primary",
+    icon: "bg-primary/12 text-primary",
+    rail: "bg-primary",
+  },
+  success: {
+    value: "text-success",
+    icon: "bg-success/12 text-success",
+    rail: "bg-success",
+  },
+};
+
 function StatCard({ icon: Icon, label, value, hint, tone = "default" }) {
-  const toneClass = {
-    default: "text-foreground",
-    primary: "text-primary",
-    success: "text-success",
-  }[tone];
+  const t = STAT_TONE[tone];
 
   return (
-    <Card>
+    <Card className="relative overflow-hidden transition-shadow hover:shadow-md">
+      {/* Fio de cor no topo: destaque sem gritar */}
+      <span className={`absolute inset-x-0 top-0 h-0.5 ${t.rail}`} aria-hidden="true" />
+
       <CardContent className="flex items-start justify-between gap-3 py-5">
         <div className="min-w-0">
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {label}
           </p>
-          <p className={`tabular mt-2 truncate text-2xl font-semibold ${toneClass}`}>
+          <p className={`tabular mt-2 truncate text-2xl font-semibold ${t.value}`}>
             {value}
           </p>
           {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
         </div>
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+        <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${t.icon}`}>
           <Icon className="size-4" />
         </span>
       </CardContent>
