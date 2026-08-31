@@ -1,0 +1,115 @@
+# ============================================================
+# Integracao continua
+# ------------------------------------------------------------
+# Roda a cada push e a cada pull request: sobe um Postgres
+# descartavel, aplica as migracoes, roda os 95 testes do backend
+# e compila o frontend.
+#
+# O objetivo e simples: um teste que so roda na maquina de quem
+# escreveu nao protege ninguem. Aqui ele roda em uma maquina
+# limpa, a partir do que esta no repositorio - o que tambem
+# prova que o projeto sobe do zero seguindo o README.
+# ============================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (testes)
+    runs-on: ubuntu-latest
+
+    # Postgres de verdade, e nao um dublê: os testes precisam do
+    # banco no meio para provarem o que se propoem (isolamento
+    # entre usuarios, somas em Decimal, cascata de exclusao).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: freelamanager_test
+        ports:
+          - 5432:5432
+        # Sem este healthcheck os passos comecariam antes de o
+        # banco aceitar conexao, e a suite falharia por corrida.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/freelamanager_test?schema=public
+      # Segredo de brinquedo, valido so dentro deste job
+      # descartavel. O segredo real nunca entra no repositorio.
+      JWT_SECRET: segredo-apenas-para-a-esteira-de-ci
+      JWT_EXPIRES_IN: 7d
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          # Cache das dependencias entre execucoes: sem isso,
+          # cada rodada baixaria tudo de novo.
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # npm ci (e nao npm install): instala exatamente o que
+      # esta no package-lock, sem atualizar nada por conta.
+      - name: Instalar dependências
+        run: npm ci
+
+      # O cliente do Prisma e codigo GERADO e nao vai para o Git
+      # (esta no .gitignore), entao precisa ser criado aqui.
+      - name: Gerar o cliente do Prisma
+        run: npx prisma generate
+
+      # migrate deploy apenas APLICA as migracoes existentes.
+      # O migrate dev, usado no desenvolvimento, poderia criar
+      # migracao nova - o que nao se faz numa esteira.
+      - name: Aplicar as migrações
+        run: npx prisma migrate deploy
+
+      - name: Rodar os testes
+        run: npm test
+
+  frontend:
+    name: Frontend (testes e build)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      # Testes das funcoes puras: formatacao, mascaras e a
+      # montagem do CSV. Nao precisam de navegador.
+      - name: Rodar os testes
+        run: npm test
+
+      # O build cobre o resto: ele quebra em import errado, JSX
+      # invalido e variavel inexistente.
+      - name: Compilar para produção
+        run: npm run build
