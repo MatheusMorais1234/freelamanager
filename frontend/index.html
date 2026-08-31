@@ -4,8 +4,30 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
+    <meta
+      name="description"
+      content="FreelaManager - gestao de clientes, contratos e pagamentos para freelancers."
+    />
     <title>FreelaManager</title>
+
+    <!-- Aplica o tema salvo ANTES do React desenhar. Sem este
+         trecho, a tela pisca no tema errado por um instante
+         (o famoso "flash of wrong theme"). -->
+    <script>
+      (function () {
+        try {
+          var salvo = localStorage.getItem("freelamanager:theme");
+          var claro =
+            salvo === "light" ||
+            (!salvo && window.matchMedia("(prefers-color-scheme: light)").matches);
+          if (!claro) document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = claro ? "light" : "dark";
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

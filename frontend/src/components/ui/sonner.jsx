@@ -1,14 +1,19 @@
 import { Toaster as Sonner } from "sonner";
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-// O app tem um tema so (escuro), entao dispensamos o next-themes
-// que vinha no componente original e fixamos o valor aqui.
+import { useTheme } from "@/context/ThemeContext.jsx";
+
+// O componente original do shadcn usa next-themes, que e coisa
+// de Next.js. Aqui o tema vem do nosso proprio contexto - se
+// ficasse fixo em "dark", o aviso sairia escuro no tema claro.
 const Toaster = ({
   ...props
 }) => {
+  const { theme } = useTheme();
+
   return (
     <Sonner
-      theme="dark"
+      theme={theme}
       className="toaster group"
       icons={{
         success: (
