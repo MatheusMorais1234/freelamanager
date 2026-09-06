@@ -15,6 +15,7 @@ import { z } from "zod";
 
 import { prisma } from "../lib/prisma.js";
 import { onlyDigits, isValidDocument } from "../lib/document.js";
+import { startOfToday } from "../lib/payment-status.js";
 import { validate } from "../middlewares/validate.js";
 import { authenticate } from "../middlewares/auth.js";
 
@@ -144,10 +145,17 @@ async function financeiroDoCliente(userId, contractIds) {
 
   const doCliente = { userId, contractId: { in: contractIds } };
 
-  // Hoje a zero hora: uma parcela que vence HOJE ainda nao esta
-  // atrasada, so amanha.
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  // Hoje a zero hora UTC: uma parcela que vence HOJE ainda nao
+  // esta atrasada, so amanha.
+  //
+  // Vem de payment-status.js de proposito, e nao de um
+  // setHours(0,0,0,0) local. As datas sao gravadas como @db.Date,
+  // ou seja, meia-noite UTC. Em UTC-3, a meia-noite LOCAL de hoje
+  // e 03:00Z - depois do vencimento de hoje. A parcela que vence
+  // hoje cairia em "atrasado" aqui e em "a receber" no resto do
+  // sistema: o mesmo numero, vermelho nesta tela e normal na
+  // outra. A regra do que e "hoje" precisa morar em um lugar so.
+  const hoje = startOfToday();
 
   const [porContrato, recebido, aVencer, atrasado] = await Promise.all([
     prisma.payment.groupBy({
