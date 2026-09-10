@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 import {
   AlertCircle,
   ArrowRight,
@@ -13,9 +13,9 @@ import {
 
 import { api } from "@/lib/api.js";
 import { useAuth } from "@/context/AuthContext.jsx";
+import { LISTA_VAZIA, useApiData } from "@/hooks/useApiData.js";
 import {
   formatMoney,
-  formatMoneyShort,
   formatDate,
   daysUntil,
   STATUS_LABEL,
@@ -25,6 +25,9 @@ import StatusBadge, {
   PaymentStatusBadge,
   STATUS_STYLE,
 } from "@/components/StatusBadge.jsx";
+import StatCard from "@/components/StatCard.jsx";
+import DueHint from "@/components/DueHint.jsx";
+import MonthlyBarChart from "@/components/MonthlyBarChart.jsx";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/States.jsx";
 
 import { Button } from "@/components/ui/button.jsx";
@@ -51,96 +54,37 @@ import {
   TableRow,
 } from "@/components/ui/table.jsx";
 
-// Cartao de indicador do topo do painel.
-// O "tone" tinge numero, icone e o fio de cor da borda superior
-// ao mesmo tempo - assim a leitura do cartao e imediata, sem
-// precisar ler o rotulo para saber se e dinheiro que entrou ou
-// dinheiro que falta entrar.
-const STAT_TONE = {
-  default: {
-    value: "text-foreground",
-    icon: "bg-muted text-muted-foreground",
-    rail: "bg-border",
-  },
-  primary: {
-    value: "text-primary",
-    icon: "bg-primary/12 text-primary",
-    rail: "bg-primary",
-  },
-  success: {
-    value: "text-success",
-    icon: "bg-success/12 text-success",
-    rail: "bg-success",
-  },
-};
-
-function StatCard({ icon: Icon, label, value, hint, tone = "default" }) {
-  const t = STAT_TONE[tone];
-
-  return (
-    <Card className="relative overflow-hidden transition-shadow hover:shadow-md">
-      {/* Fio de cor no topo: destaque sem gritar */}
-      <span className={`absolute inset-x-0 top-0 h-0.5 ${t.rail}`} aria-hidden="true" />
-
-      <CardContent className="flex items-start justify-between gap-3 py-5">
-        <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {label}
-          </p>
-          <p className={`tabular mt-2 truncate text-2xl font-semibold ${t.value}`}>
-            {value}
-          </p>
-          {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-        </div>
-        <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${t.icon}`}>
-          <Icon className="size-4" />
-        </span>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function Dashboard() {
   const { user } = useAuth();
 
-  const [stats, setStats] = useState(null);
-  const [contracts, setContracts] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // useCallback para a funcao nao ser recriada a cada render e
-  // poder entrar como dependencia do useEffect com seguranca.
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      // Promise.all dispara as chamadas EM PARALELO.
-      // Uma depois da outra levaria o dobro do tempo.
-      const [s, c, sum, p] = await Promise.all([
+  // useCallback para a funcao nao ser recriada a cada render.
+  // Promise.all dispara as quatro chamadas EM PARALELO - uma
+  // depois da outra levaria o quadruplo do tempo.
+  const buscar = useCallback(
+    () =>
+      Promise.all([
         api.get("/contracts/stats"),
         api.get("/contracts"),
         api.get("/payments/summary"),
         api.get("/payments"),
-      ]);
-      setStats(s.stats);
-      setContracts(c.contracts);
-      setSummary(sum.summary);
-      setPayments(p.payments);
-    } catch (err) {
-      // Sem este catch, uma API fora do ar deixaria "stats" em
-      // null e a tela quebraria ao ler stats.byStatus.
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      ]).then(([s, c, sum, p]) => ({
+        stats: s.stats,
+        contracts: c.contracts,
+        summary: sum.summary,
+        payments: p.payments,
+      })),
+    []
+  );
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // O hook cuida do loading, do erro e de descartar resposta
+  // atrasada. Sem o erro tratado, uma API fora do ar deixaria
+  // "stats" em null e a tela quebraria ao ler stats.byStatus.
+  const { data, loading, error, reload } = useApiData(buscar);
+
+  const stats = data?.stats ?? null;
+  const contracts = data?.contracts ?? LISTA_VAZIA;
+  const summary = data?.summary ?? null;
+  const payments = data?.payments ?? LISTA_VAZIA;
 
   // useMemo: estes calculos so refazem quando os dados mudam,
   // nao a cada re-render provocado por outra coisa.
@@ -210,7 +154,7 @@ export default function Dashboard() {
     return (
       <>
         <PageHeader title="Painel" />
-        <ErrorState message={error} onRetry={load} />
+        <ErrorState message={error} onRetry={reload} />
       </>
     );
   }
@@ -238,14 +182,15 @@ export default function Dashboard() {
       </PageHeader>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Users} label="Clientes" value={stats.totalClients} />
-        <StatCard icon={FileText} label="Contratos" value={stats.totalContracts} />
+        <StatCard icon={Users} label="Clientes" value={stats.totalClients} rail />
+        <StatCard icon={FileText} label="Contratos" value={stats.totalContracts} rail />
         <StatCard
           icon={Wallet}
           label="A receber"
           value={formatMoney(aReceber)}
           hint={`${summary.pending.count + summary.overdue.count} parcela(s) em aberto`}
           tone="primary"
+          rail
         />
         <StatCard
           icon={TrendingUp}
@@ -253,6 +198,7 @@ export default function Dashboard() {
           value={formatMoney(recebido)}
           hint={`${summary.paid.count} parcela(s) paga(s)`}
           tone="success"
+          rail
         />
       </section>
 
@@ -342,38 +288,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{ total: { label: "Faturado", color: "var(--chart-1)" } }}
-              className="h-64 w-full"
-            >
-              <BarChart data={monthlyData} margin={{ left: 4, right: 4 }}>
-                <CartesianGrid vertical={false} stroke="var(--border)" />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  className="text-xs"
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  width={64}
-                  tickFormatter={formatMoneyShort}
-                  className="text-xs"
-                />
-                <ChartTooltip
-                  cursor={{ fill: "var(--muted)", opacity: 0.4 }}
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) => formatMoney(value)}
-                      indicator="line"
-                    />
-                  }
-                />
-                <Bar dataKey="total" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
+            <MonthlyBarChart data={monthlyData} label="Faturado" />
           </CardContent>
         </Card>
       </section>
@@ -406,19 +321,9 @@ export default function Dashboard() {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="tabular text-sm">{formatDate(c.dueDate)}</p>
-                  <p
-                    className={
-                      c.days < 0
-                        ? "text-xs font-medium text-destructive"
-                        : "text-xs text-muted-foreground"
-                    }
-                  >
-                    {c.days < 0
-                      ? `${Math.abs(c.days)} dia(s) em atraso`
-                      : c.days === 0
-                        ? "vence hoje"
-                        : `em ${c.days} dia(s)`}
-                  </p>
+                  {/* mute: no painel, "no prazo" e so contexto -
+                      quem precisa saltar aos olhos e o atraso. */}
+                  <DueHint dueDate={c.dueDate} mute />
                 </div>
               </div>
             ))}

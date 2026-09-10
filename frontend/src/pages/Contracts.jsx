@@ -1,22 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+// ============================================================
+// Tela de contratos - o trabalho combinado com cada cliente
+// ------------------------------------------------------------
+// A pagina decide O QUE mostrar (busca, filtro, recorte por
+// cliente) e o que mandar para a API. O desenho da tabela mora
+// em components/contracts/ContractsTable.jsx.
+// ============================================================
+
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { FileText, Loader2, MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { FileText, Loader2, Plus, X } from "lucide-react";
 
 import { api } from "@/lib/api.js";
-import StatusBadge from "@/components/StatusBadge.jsx";
+import { LISTA_VAZIA, useApiData } from "@/hooks/useApiData.js";
 import ContractDetail from "@/components/ContractDetail.jsx";
+import ContractsTable from "@/components/contracts/ContractsTable.jsx";
+import ConfirmDialog from "@/components/ConfirmDialog.jsx";
+import FilterBar from "@/components/FilterBar.jsx";
 import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/States.jsx";
 import {
-  daysUntil,
-  formatDate,
+  countByStatus,
   formatMoney,
-  paidPercent,
   STATUS_LABEL,
   STATUS_LIST,
   toInputDate,
 } from "@/lib/format.js";
-import { cn } from "@/lib/utils.js";
 
 import { Button } from "@/components/ui/button.jsx";
 import { Card } from "@/components/ui/card.jsx";
@@ -24,17 +32,6 @@ import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
 import { Textarea } from "@/components/ui/textarea.jsx";
 import { Alert, AlertDescription } from "@/components/ui/alert.jsx";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.jsx";
 import {
   Select,
   SelectContent,
@@ -49,24 +46,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet.jsx";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog.jsx";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table.jsx";
 
 const EMPTY = {
   clientId: "",
@@ -77,71 +56,20 @@ const EMPTY = {
   dueDate: "",
 };
 
-/**
- * Quanto do contrato ja foi recebido, em barra e em texto.
- * O numero vem pronto do backend (campo paidAmount), somado a
- * partir das parcelas com data de recebimento.
- */
-function PaidProgress({ paid, total }) {
-  const value = Number(paid ?? 0);
-  if (value <= 0) return null;
-
-  const percent = paidPercent(value, total);
-  const done = percent >= 100;
-
-  return (
-    <div className="mt-1 flex items-center justify-end gap-2">
-      {/* aria-hidden: a barra e enfeite; o texto ao lado ja diz
-          a mesma coisa para quem usa leitor de tela. */}
-      <span
-        className="h-1.5 w-16 overflow-hidden rounded-full bg-muted"
-        aria-hidden="true"
-      >
-        <span
-          className={cn("block h-full rounded-full", done ? "bg-success" : "bg-primary")}
-          style={{ width: `${percent}%` }}
-        />
-      </span>
-      <span
-        className={cn(
-          "tabular text-xs",
-          done ? "text-success" : "text-muted-foreground"
-        )}
-      >
-        {done ? "quitado" : `${formatMoney(value)} recebido`}
-      </span>
-    </div>
-  );
-}
-
-/** Aviso de prazo ao lado da data, so quando ainda importa. */
-function DueHint({ dueDate, status }) {
-  if (!dueDate || status === "COMPLETED" || status === "CANCELLED") return null;
-
-  const days = daysUntil(dueDate);
-  if (days > 7) return null;
-
-  return (
-    <span
-      className={cn(
-        "text-xs",
-        days < 0 ? "font-medium text-destructive" : "text-primary"
-      )}
-    >
-      {days < 0
-        ? `${Math.abs(days)} dia(s) em atraso`
-        : days === 0
-          ? "vence hoje"
-          : `em ${days} dia(s)`}
-    </span>
-  );
-}
-
 export default function Contracts() {
-  const [contracts, setContracts] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const buscar = useCallback(
+    () =>
+      Promise.all([api.get("/contracts"), api.get("/clients")]).then(([c, cl]) => ({
+        contracts: c.contracts,
+        clients: cl.clients,
+      })),
+    []
+  );
+
+  const { data, loading, error: loadError, reload } = useApiData(buscar);
+
+  const contracts = data?.contracts ?? LISTA_VAZIA;
+  const clients = data?.clients ?? LISTA_VAZIA;
 
   const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -164,28 +92,9 @@ export default function Contracts() {
   // desabilitar so aquele menu e nao a tabela inteira.
   const [updatingId, setUpdatingId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-
-    try {
-      const [c, cl] = await Promise.all([api.get("/contracts"), api.get("/clients")]);
-      setContracts(c.contracts);
-      setClients(cl.clients);
-    } catch (err) {
-      setLoadError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
   function openCreate() {
     setEditing(null);
-    setForm({ ...EMPTY, clientId: clients[0]?.id || "" });
+    setForm({ ...EMPTY, clientId: clientFilter || clients[0]?.id || "" });
     setFormError("");
     setSheetOpen(true);
   }
@@ -219,7 +128,7 @@ export default function Contracts() {
 
       setSheetOpen(false);
       toast.success(editing ? "Contrato atualizado" : "Contrato criado");
-      await load();
+      await reload();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -234,7 +143,7 @@ export default function Contracts() {
     try {
       await api.delete(`/contracts/${contract.id}`);
       toast.success(`"${contract.title}" foi excluído`);
-      await load();
+      await reload();
     } catch (err) {
       toast.error(err.message);
     }
@@ -256,7 +165,7 @@ export default function Contracts() {
         dueDate: contract.dueDate,
       });
       toast.success(`Status alterado para "${STATUS_LABEL[status]}"`);
-      await load();
+      await reload();
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -291,14 +200,17 @@ export default function Contracts() {
     [filtered]
   );
 
-  // Contagem por aba, para os numeros aparecerem no filtro.
-  const counts = useMemo(() => {
-    const base = { ALL: contracts.length };
-    for (const s of STATUS_LIST) {
-      base[s] = contracts.filter((c) => c.status === s).length;
-    }
-    return base;
-  }, [contracts]);
+  // Contagem por aba, para os numeros aparecerem no filtro. Ela
+  // segue o recorte por cliente, senao a aba diria "Pendente
+  // (12)" e a tabela mostraria 2.
+  const counts = useMemo(
+    () =>
+      countByStatus(
+        clientFilter ? contracts.filter((c) => c.clientId === clientFilter) : contracts,
+        STATUS_LIST
+      ),
+    [contracts, clientFilter]
+  );
 
   const noClients = !loading && clients.length === 0;
 
@@ -348,31 +260,19 @@ export default function Contracts() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="ALL">Todos ({counts.ALL})</TabsTrigger>
-            {STATUS_LIST.map((s) => (
-              <TabsTrigger key={s} value={s}>
-                {STATUS_LABEL[s]} ({counts[s]})
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        <div className="relative max-w-sm lg:w-72">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Buscar por título ou cliente..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
+      <FilterBar
+        value={filter}
+        onChange={setFilter}
+        options={STATUS_LIST}
+        labels={STATUS_LABEL}
+        counts={counts}
+        search={search}
+        onSearch={setSearch}
+        placeholder="Buscar por título ou cliente..."
+      />
 
       {loadError ? (
-        <ErrorState message={loadError} onRetry={load} />
+        <ErrorState message={loadError} onRetry={reload} />
       ) : (
         <Card className="overflow-hidden py-0">
           {loading ? (
@@ -398,122 +298,14 @@ export default function Contracts() {
             </EmptyState>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Prazo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-12" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="max-w-xs">
-                        {/* Clicar no titulo abre o detalhe: e o
-                            gesto que a pessoa ja tenta antes de
-                            procurar o menu de tres pontinhos. */}
-                        <button
-                          type="button"
-                          onClick={() => setDetailId(c.id)}
-                          className="block w-full truncate text-left font-medium hover:text-primary hover:underline"
-                        >
-                          {c.title}
-                        </button>
-                        {c.description && (
-                          <p className="truncate text-xs text-muted-foreground">
-                            {c.description}
-                          </p>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground">
-                        <p className="truncate">{c.client.name}</p>
-                        {c.client.company && (
-                          <p className="truncate text-xs">{c.client.company}</p>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <p className="tabular font-medium">{formatMoney(c.amount)}</p>
-                        <PaidProgress paid={c.paidAmount} total={c.amount} />
-                      </TableCell>
-
-                      <TableCell>
-                        <p className="tabular text-muted-foreground">
-                          {formatDate(c.dueDate)}
-                        </p>
-                        <DueHint dueDate={c.dueDate} status={c.status} />
-                      </TableCell>
-
-                      <TableCell>
-                        {/* Menu de status: troca rapida sem abrir o
-                            formulario inteiro. */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            disabled={updatingId === c.id}
-                            className="disabled:opacity-60"
-                          >
-                            {updatingId === c.id ? (
-                              <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs">
-                                <Loader2 className="size-3 animate-spin" />
-                                Salvando
-                              </span>
-                            ) : (
-                              <StatusBadge
-                                status={c.status}
-                                className="cursor-pointer hover:opacity-80"
-                              />
-                            )}
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuLabel>Alterar status</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuRadioGroup
-                              value={c.status}
-                              onValueChange={(s) => quickStatus(c, s)}
-                            >
-                              {STATUS_LIST.map((s) => (
-                                <DropdownMenuRadioItem key={s} value={s}>
-                                  {STATUS_LABEL[s]}
-                                </DropdownMenuRadioItem>
-                              ))}
-                            </DropdownMenuRadioGroup>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="Ações">
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setDetailId(c.id)}>
-                              Ver detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(c)}>
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setToDelete(c)}
-                            >
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ContractsTable
+                contracts={filtered}
+                updatingId={updatingId}
+                onOpenDetail={(c) => setDetailId(c.id)}
+                onQuickStatus={quickStatus}
+                onEdit={openEdit}
+                onDelete={setToDelete}
+              />
             </div>
           )}
         </Card>
@@ -642,26 +434,13 @@ export default function Contracts() {
         onOpenChange={(open) => !open && setDetailId(null)}
       />
 
-      {/* ---------------- Confirmacao de exclusao ---------------- */}
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir "{toDelete?.title}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        title={`Excluir "${toDelete?.title}"?`}
+        description="Esta ação não pode ser desfeita."
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Building2,
@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api.js";
+import { LISTA_VAZIA, useApiData } from "@/hooks/useApiData.js";
+import ConfirmDialog from "@/components/ConfirmDialog.jsx";
 import ClientForm, { EMPTY_CLIENT } from "@/components/ClientForm.jsx";
 import ClientDetail from "@/components/ClientDetail.jsx";
 import { EmptyState, ErrorState, PageHeader, TableSkeleton } from "@/components/States.jsx";
@@ -42,16 +44,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet.jsx";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog.jsx";
-import {
   Table,
   TableBody,
   TableCell,
@@ -61,9 +53,10 @@ import {
 } from "@/components/ui/table.jsx";
 
 export default function Clients() {
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const buscar = useCallback(() => api.get("/clients").then((d) => d.clients), []);
+  const { data, loading, error: loadError, reload } = useApiData(buscar);
+  const clients = data ?? LISTA_VAZIA;
+
   const [search, setSearch] = useState("");
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -76,24 +69,6 @@ export default function Clients() {
 
   // Qual cliente esta aberto no painel de detalhe (null = nenhum).
   const [detailId, setDetailId] = useState(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-
-    try {
-      const data = await api.get("/clients");
-      setClients(data.clients);
-    } catch (err) {
-      setLoadError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   function openCreate() {
     setEditing(null);
@@ -153,7 +128,7 @@ export default function Clients() {
 
       setSheetOpen(false);
       toast.success(editing ? "Cliente atualizado" : "Cliente cadastrado");
-      await load();
+      await reload();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -168,7 +143,7 @@ export default function Clients() {
     try {
       await api.delete(`/clients/${client.id}`);
       toast.success(`"${client.name}" foi excluído`);
-      await load();
+      await reload();
     } catch (err) {
       toast.error(err.message);
     }
@@ -228,7 +203,7 @@ export default function Clients() {
       </div>
 
       {loadError ? (
-        <ErrorState message={loadError} onRetry={load} />
+        <ErrorState message={loadError} onRetry={reload} />
       ) : (
         <Card className="overflow-hidden py-0">
           {loading ? (
@@ -398,34 +373,25 @@ export default function Clients() {
       </Sheet>
 
       {/* ---------------- Confirmacao de exclusao ---------------- */}
-      {/* AlertDialog (e nao Dialog) porque a acao e destrutiva:
-          ele prende o foco e exige uma escolha explicita. */}
-      <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir "{toDelete?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {toDelete?._count.contracts > 0 ? (
-                <>
-                  Os <strong>{toDelete._count.contracts} contrato(s)</strong> deste
-                  cliente também serão apagados. Esta ação não pode ser desfeita.
-                </>
-              ) : (
-                "Esta ação não pode ser desfeita."
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* ConfirmDialog usa AlertDialog (e nao Dialog) porque a
+          acao e destrutiva: ele prende o foco e exige uma
+          escolha explicita. */}
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        title={`Excluir "${toDelete?.name}"?`}
+        description={
+          toDelete?._count.contracts > 0 ? (
+            <>
+              Os <strong>{toDelete._count.contracts} contrato(s)</strong> deste cliente
+              também serão apagados. Esta ação não pode ser desfeita.
+            </>
+          ) : (
+            "Esta ação não pode ser desfeita."
+          )
+        }
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }
