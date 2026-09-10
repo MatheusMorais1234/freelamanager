@@ -119,7 +119,11 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
+                    // <button> cru nao tem o foco visivel do
+                    // ui/button; sem isso quem chega aqui pelo
+                    // Tab nao ve onde esta. Mesmo anel do
+                    // ui/button.jsx.
+                    className="absolute inset-y-0 right-0 grid w-10 place-items-center rounded-md text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                     aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   >
                     {showPassword ? (
@@ -139,7 +143,13 @@ export default function Login() {
 
             <p className="text-center text-sm text-muted-foreground">
               Não tem conta?{" "}
-              <Link to="/register" className="font-medium text-primary hover:underline">
+              {/* text-primary-emphasis, nao text-primary: o
+                  ambar da marca sobre o cartao branco da 2.27:1,
+                  e este e o link mais importante da tela. */}
+              <Link
+                to="/register"
+                className="font-medium text-primary-emphasis hover:underline"
+              >
                 Criar agora
               </Link>
             </p>

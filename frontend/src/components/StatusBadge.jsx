@@ -1,6 +1,13 @@
 // Selo colorido do status de um contrato.
 // A cor tambem aparece nos graficos do painel - as duas leem
 // as mesmas variaveis de tema, entao nunca saem de sincronia.
+//
+// Repare no par de tokens: a BORDA e o FUNDO usam a cor viva
+// (--primary, --success), o TEXTO usa a variante *-emphasis.
+// No tema claro o ambar da marca so tem 2.11:1 contra o proprio
+// fundo do selo - ilegivel; o -emphasis leva a 4.66:1 e passa em
+// AA. No tema escuro os dois tokens sao a mesma cor, entao o
+// selo continua exatamente como era.
 
 import { Clock, Loader, CheckCircle2, XCircle, AlertCircle, CircleDollarSign } from "lucide-react";
 
@@ -11,7 +18,7 @@ export const STATUS_STYLE = {
   PENDING: {
     icon: Clock,
     chart: "var(--chart-1)",
-    badge: "border-primary/30 bg-primary/10 text-primary",
+    badge: "border-primary/30 bg-primary/10 text-primary-emphasis",
   },
   ACTIVE: {
     icon: Loader,
@@ -21,7 +28,7 @@ export const STATUS_STYLE = {
   COMPLETED: {
     icon: CheckCircle2,
     chart: "var(--chart-3)",
-    badge: "border-success/30 bg-success/10 text-success",
+    badge: "border-success/30 bg-success/10 text-success-emphasis",
   },
   CANCELLED: {
     icon: XCircle,
@@ -36,12 +43,12 @@ export const PAYMENT_STATUS_STYLE = {
   PENDING: {
     icon: CircleDollarSign,
     chart: "var(--chart-1)",
-    badge: "border-primary/30 bg-primary/10 text-primary",
+    badge: "border-primary/30 bg-primary/10 text-primary-emphasis",
   },
   PAID: {
     icon: CheckCircle2,
     chart: "var(--chart-3)",
-    badge: "border-success/30 bg-success/10 text-success",
+    badge: "border-success/30 bg-success/10 text-success-emphasis",
   },
   OVERDUE: {
     icon: AlertCircle,
