@@ -39,7 +39,18 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // O veu era bg-black/10: 1.18:1 contra a gaveta, quase
+        // nenhuma separacao. bg-black/40 leva o tema claro a
+        // 2.68:1.
+        //
+        // Tentei bg-foreground/20, sugerido por ser "dos dois
+        // temas": no escuro ele CLAREIA o fundo (--foreground e
+        // quase branco la), deixando o que esta atras mais
+        // luminoso que a propria gaveta - o contrario do que um
+        // veu deve fazer. Preto continua sendo a escolha certa;
+        // no tema escuro quem separa a gaveta e a borda dela,
+        // porque nao da para escurecer o que ja e escuro.
+        "fixed inset-0 z-50 bg-black/40 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props} />
@@ -69,7 +80,9 @@ function SheetContent({
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
             <Button variant="ghost" className="absolute top-3 right-3" size="icon-sm">
               <XIcon />
-              <span className="sr-only">Close</span>
+              {/* Rotulo lido pelo leitor de tela. Veio "Close"
+                  do shadcn; o app inteiro e pt-BR. */}
+              <span className="sr-only">Fechar</span>
             </Button>
           </SheetPrimitive.Close>
         )}

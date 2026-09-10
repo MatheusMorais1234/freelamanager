@@ -38,9 +38,18 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  /* Versoes so-para-texto do ambar e do verde. Ver o bloco
+     "Cores de fundo x cores de texto" mais abaixo. */
+  --color-primary-emphasis: var(--primary-emphasis);
+  --color-success-emphasis: var(--success-emphasis);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -90,6 +99,34 @@
   --warning: oklch(0.75 0.145 74);
   --info: oklch(0.62 0.15 250);
 
+  /* ---- Cores de fundo x cores de texto ----
+     As quatro cores acima sao cores de FUNDO: vivas o bastante
+     para um selo ou um botao chapado se destacar. Como TEXTO
+     sobre o fundo claro elas reprovam na acessibilidade -
+     o ambar da marca da 2.21:1 e o verde 2.94:1, contra o
+     minimo de 4.5:1 que a WCAG AA pede para texto normal.
+
+     Por isso existem dois tokens a mais: *-emphasis. Sao o
+     mesmo matiz, so que rebaixados ate passarem em AA, e
+     servem SO para texto e icone. O fundo continua usando
+     --primary / --success, que e onde a cor viva funciona.
+
+     No tema escuro nao ha esse conflito - sobre grafite o
+     ambar ja da 9.5:1 - entao la os *-emphasis apontam de
+     volta para a cor original, e a marca nao perde brilho. */
+  --primary-emphasis: oklch(0.55 0.13 62); /* 4.89:1 sobre --background */
+  --success-emphasis: oklch(0.52 0.12 158); /* 5.04:1 sobre --background */
+
+  /* Texto POR CIMA de cada uma dessas cores chapadas. Sem
+     estes tokens as telas acabavam escrevendo "text-white"
+     na mao - e branco sobre o verde da so 2.89:1. Repare que
+     quase todos sao ESCUROS: as cores da paleta sao claras
+     demais para carregar texto branco. */
+  --destructive-foreground: oklch(1 0 0); /* 4.74:1 */
+  --success-foreground: oklch(0.2 0.04 158); /* 5.93:1 */
+  --warning-foreground: oklch(0.22 0.035 62); /* 7.65:1 */
+  --info-foreground: oklch(0.2 0.05 250); /* 4.98:1 */
+
   --border: oklch(0.9 0.008 265);
   --input: oklch(0.9 0.008 265);
   --ring: oklch(0.75 0.145 74);
@@ -133,6 +170,21 @@
   --success: oklch(0.76 0.16 160);
   --warning: oklch(0.786 0.147 78);
   --info: oklch(0.7 0.14 252);
+
+  /* Sobre grafite as cores da paleta ja passam em AA como
+     texto (ambar 9.50:1, verde 9.43:1), entao aqui os
+     *-emphasis sao a propria cor - o alias existe so para as
+     telas poderem escrever um nome de token unico. */
+  --primary-emphasis: var(--primary);
+  --success-emphasis: var(--success);
+
+  /* No escuro as cores ficam ainda mais claras, entao ate o
+     vermelho pede texto escuro por cima: branco sobre ele da
+     3.43:1, e um tom escuro da 5.12:1. */
+  --destructive-foreground: oklch(0.2 0.05 25); /* 5.12:1 */
+  --success-foreground: oklch(0.2 0.04 160); /* 8.93:1 */
+  --warning-foreground: oklch(0.2 0.032 60); /* 9.12:1 */
+  --info-foreground: oklch(0.2 0.04 252); /* 6.79:1 */
 
   --border: oklch(0.315 0.017 264);
   --input: oklch(0.315 0.017 264);

@@ -63,7 +63,10 @@ function useCurrentPage() {
 function NavItems({ onNavigate }) {
   return (
     <nav className="flex flex-1 flex-col gap-0.5">
-      <p className="mb-2 px-3 text-[11px] font-semibold tracking-widest text-muted-foreground/70 uppercase">
+      {/* Sem o /70 no token: em 11px o texto ja e pequeno, e a
+          transparencia derrubava o contraste para 2.82:1 - o
+          pior do menu. Com o token cheio sao 5.05:1. */}
+      <p className="mb-2 px-3 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
         Gestão
       </p>
 
@@ -111,9 +114,12 @@ function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
+        {/* <button> cru nao herda o foco visivel do ui/button,
+            entao quem navega por teclado nao via onde estava.
+            O anel abaixo e o mesmo do ui/button.jsx. */}
         <button
           type="button"
-          className="flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/60"
+          className="flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         >
           <Avatar className="size-8">
             <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
@@ -145,14 +151,23 @@ function AccountMenu() {
 
 function SidebarContent({ onNavigate }) {
   return (
-    <div className="flex h-full flex-col gap-6 p-4">
-      <Brand className="px-1" />
+    <div className="flex h-full flex-col">
+      {/* Cabecalho proprio com a MESMA altura da barra do topo
+          (h-14). Antes a marca vivia no p-4 do bloco todo e
+          ocupava ~68px, entao ela e o nome da tela ao lado
+          ficavam desalinhados por uns 6px - pouco para notar,
+          o bastante para a tela parecer torta. */}
+      <div className="flex h-14 items-center px-4">
+        <Brand />
+      </div>
 
-      <NavItems onNavigate={onNavigate} />
+      <div className="flex flex-1 flex-col gap-6 p-4 pt-2">
+        <NavItems onNavigate={onNavigate} />
 
-      <div className="flex flex-col gap-2">
-        <Separator />
-        <AccountMenu />
+        <div className="flex flex-col gap-2">
+          <Separator />
+          <AccountMenu />
+        </div>
       </div>
     </div>
   );
@@ -215,11 +230,14 @@ export default function Layout() {
             </SheetContent>
           </Sheet>
 
-          <Brand className="md:hidden" />
-
-          <div className="hidden items-center gap-2 md:flex">
-            <PageIcon className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{page.label}</span>
+          {/* No celular a barra mostrava a marca - que ja
+              aparece dentro da gaveta, a um toque de distancia -
+              e escondia o nome da tela justo onde nao ha coluna
+              lateral para dizer onde o usuario esta. Invertido:
+              o nome da tela vale nos dois tamanhos. */}
+          <div className="flex min-w-0 items-center gap-2">
+            <PageIcon className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate text-sm font-medium">{page.label}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-1">
