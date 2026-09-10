@@ -60,6 +60,36 @@ export function daysUntil(value) {
   return Math.round((due - today) / 86_400_000);
 }
 
+/**
+ * A frase que acompanha um vencimento: "3 dia(s) em atraso",
+ * "vence hoje" ou "em 5 dia(s)".
+ *
+ * Estava escrita como uma cadeia de ternarios dentro do JSX de
+ * tres telas. Trazida para ca, e uma funcao pura - da para
+ * testar sem montar componente nenhum, que e onde este projeto
+ * concentra os testes do frontend.
+ */
+export function dueLabel(days) {
+  if (days === null || days === undefined) return "";
+  if (days < 0) return `${Math.abs(days)} dia(s) em atraso`;
+  if (days === 0) return "vence hoje";
+  return `em ${days} dia(s)`;
+}
+
+/**
+ * Quantos itens ha em cada status, mais o total em "ALL".
+ * O mesmo useMemo aparecia em Contratos e Pagamentos, mudando
+ * so a lista de status.
+ */
+export function countByStatus(lista, statuses) {
+  const itens = lista ?? [];
+  const base = { ALL: itens.length };
+  for (const s of statuses ?? []) {
+    base[s] = itens.filter((i) => i.status === s).length;
+  }
+  return base;
+}
+
 // ---------- Documentos ----------
 
 export function formatCPF(value) {
