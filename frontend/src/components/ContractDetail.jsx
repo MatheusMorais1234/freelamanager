@@ -8,13 +8,14 @@
 // parcelas junto - uma chamada, nao tres.
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Wallet } from "lucide-react";
 
 import { api } from "@/lib/api.js";
+import { useApiData } from "@/hooks/useApiData.js";
 import StatusBadge, { PaymentStatusBadge } from "@/components/StatusBadge.jsx";
-import { ErrorState } from "@/components/States.jsx";
+import { DetailSkeleton, ErrorState } from "@/components/States.jsx";
 import {
   formatDate,
   formatMoney,
@@ -25,7 +26,6 @@ import { cn } from "@/lib/utils.js";
 
 import { Button } from "@/components/ui/button.jsx";
 import { Separator } from "@/components/ui/separator.jsx";
-import { Skeleton } from "@/components/ui/skeleton.jsx";
 import {
   Sheet,
   SheetContent,
@@ -112,39 +112,23 @@ function PaymentSummary({ paid, total }) {
 }
 
 export default function ContractDetail({ contractId, onOpenChange }) {
-  const [contract, setContract] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    if (!contractId) return;
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const { contract: data } = await api.get(`/contracts/${contractId}`);
-      setContract(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  // Sem contrato escolhido o painel esta fechado - devolver
+  // null evita uma chamada a /contracts/null.
+  const buscar = useCallback(async () => {
+    if (!contractId) return null;
+    const { contract: data } = await api.get(`/contracts/${contractId}`);
+    return data;
   }, [contractId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Fechar limpa o conteudo: sem isso, reabrir em outro contrato
-  // piscaria os dados do anterior antes de carregar os novos.
-  function handleOpenChange(open) {
-    if (!open) setContract(null);
-    onOpenChange(open);
-  }
+  // Trocar de contrato refaz a busca, e o hook descarta a
+  // resposta do anterior se ela chegar atrasada - era assim que
+  // o painel mostrava os dados do contrato errado. Fechar zera
+  // o conteudo pelo mesmo caminho: contractId vira null, a
+  // busca devolve null e o painel volta ao esqueleto.
+  const { data: contract, loading, error, reload } = useApiData(buscar, [contractId]);
 
   return (
-    <Sheet open={!!contractId} onOpenChange={handleOpenChange}>
+    <Sheet open={!!contractId} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{contract?.title || "Contrato"}</SheetTitle>
@@ -159,14 +143,9 @@ export default function ContractDetail({ contractId, onOpenChange }) {
 
         <div className="space-y-5 px-4 pb-6">
           {error ? (
-            <ErrorState message={error} onRetry={load} />
+            <ErrorState message={error} onRetry={reload} />
           ) : loading || !contract ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 rounded-lg" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-16 rounded-lg" />
-              <Skeleton className="h-16 rounded-lg" />
-            </div>
+            <DetailSkeleton />
           ) : (
             <>
               <PaymentSummary paid={contract.paidAmount} total={contract.amount} />

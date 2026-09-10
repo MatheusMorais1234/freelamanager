@@ -10,8 +10,7 @@
 // destino desse numero e uma planilha.
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -23,13 +22,11 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api.js";
-import {
-  formatMoney,
-  formatMoneyShort,
-  formatDate,
-  PAYMENT_METHOD_LABEL,
-} from "@/lib/format.js";
+import { useApiData } from "@/hooks/useApiData.js";
+import { formatMoney, formatDate, PAYMENT_METHOD_LABEL } from "@/lib/format.js";
 import { baixarCSV, paraCSV } from "@/lib/csv.js";
+import StatCard from "@/components/StatCard.jsx";
+import MonthlyBarChart from "@/components/MonthlyBarChart.jsx";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/States.jsx";
 
 import { Button } from "@/components/ui/button.jsx";
@@ -43,11 +40,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card.jsx";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart.jsx";
 import {
   Table,
   TableBody,
@@ -92,72 +84,32 @@ function atalhos() {
 
 const ATALHOS = atalhos();
 
-function StatCard({ icon: Icon, label, value, hint, tone = "default" }) {
-  const cores = {
-    default: { value: "text-foreground", icon: "bg-muted text-muted-foreground" },
-    primary: { value: "text-primary", icon: "bg-primary/12 text-primary" },
-    success: { value: "text-success", icon: "bg-success/12 text-success" },
-    destructive: {
-      value: "text-destructive",
-      icon: "bg-destructive/12 text-destructive",
-    },
-  }[tone];
-
-  return (
-    <Card>
-      <CardContent className="flex items-start justify-between gap-3 py-5">
-        <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {label}
-          </p>
-          <p className={`tabular mt-2 truncate text-2xl font-semibold ${cores.value}`}>
-            {value}
-          </p>
-          {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-        </div>
-        <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${cores.icon}`}>
-          <Icon className="size-4" />
-        </span>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function Reports() {
   const inicial = ATALHOS[0];
 
   const [from, setFrom] = useState(inicial.from);
   const [to, setTo] = useState(inicial.to);
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const buscar = useCallback(async () => {
+    const { report: data } = await api.get(`/reports?from=${from}&to=${to}`);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const { report: data } = await api.get(`/reports?from=${from}&to=${to}`);
-      setReport(data);
-
-      // O backend conserta datas invertidas; a tela precisa
-      // acompanhar, senao os campos mostrariam uma coisa e o
-      // relatorio abaixo mostraria outra.
-      if (data.period.swapped) {
-        setFrom(data.period.from);
-        setTo(data.period.to);
-        toast.info("As datas estavam invertidas e foram trocadas.");
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    // O backend conserta datas invertidas; a tela precisa
+    // acompanhar, senao os campos mostrariam uma coisa e o
+    // relatorio abaixo mostraria outra. Mudar from/to dispara
+    // outra busca - que ja vem sem "swapped" e encerra a ida e
+    // volta.
+    if (data.period.swapped) {
+      setFrom(data.period.from);
+      setTo(data.period.to);
+      toast.info("As datas estavam invertidas e foram trocadas.");
     }
+
+    return data;
   }, [from, to]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Aqui o array de dependencias importa de verdade: trocar o
+  // periodo refaz a busca, e o hook descarta a resposta da
+  // consulta anterior se ela chegar atrasada.
+  const { data: report, loading, error, reload } = useApiData(buscar, [from, to]);
 
   const monthlyData = useMemo(() => {
     if (!report) return [];
@@ -275,7 +227,7 @@ export default function Reports() {
       </Card>
 
       {error ? (
-        <ErrorState message={error} onRetry={load} />
+        <ErrorState message={error} onRetry={reload} />
       ) : loading || !report ? (
         <>
           <CardsSkeleton count={3} />
@@ -333,38 +285,11 @@ export default function Reports() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ChartContainer
-                      config={{ total: { label: "Recebido", color: "var(--chart-3)" } }}
-                      className="h-64 w-full"
-                    >
-                      <BarChart data={monthlyData} margin={{ left: 4, right: 4 }}>
-                        <CartesianGrid vertical={false} stroke="var(--border)" />
-                        <XAxis
-                          dataKey="label"
-                          tickLine={false}
-                          axisLine={false}
-                          tickMargin={8}
-                          className="text-xs"
-                        />
-                        <YAxis
-                          tickLine={false}
-                          axisLine={false}
-                          width={64}
-                          tickFormatter={formatMoneyShort}
-                          className="text-xs"
-                        />
-                        <ChartTooltip
-                          cursor={{ fill: "var(--muted)", opacity: 0.4 }}
-                          content={
-                            <ChartTooltipContent
-                              formatter={(value) => formatMoney(value)}
-                              indicator="line"
-                            />
-                          }
-                        />
-                        <Bar dataKey="total" fill="var(--chart-3)" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ChartContainer>
+                    <MonthlyBarChart
+                      data={monthlyData}
+                      color="var(--chart-3)"
+                      label="Recebido"
+                    />
                   </CardContent>
                 </Card>
               )}

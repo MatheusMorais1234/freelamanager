@@ -11,7 +11,7 @@
 // totais somados no banco - uma chamada, nao uma por contrato.
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -28,8 +28,9 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api.js";
+import { useApiData } from "@/hooks/useApiData.js";
 import StatusBadge from "@/components/StatusBadge.jsx";
-import { ErrorState } from "@/components/States.jsx";
+import { DetailSkeleton, ErrorState } from "@/components/States.jsx";
 import {
   formatDate,
   formatDocument,
@@ -41,7 +42,6 @@ import {
 
 import { Button } from "@/components/ui/button.jsx";
 import { Separator } from "@/components/ui/separator.jsx";
-import { Skeleton } from "@/components/ui/skeleton.jsx";
 import {
   Sheet,
   SheetContent,
@@ -148,47 +148,28 @@ function enderecoEmLinha(c) {
 }
 
 export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
-  const [client, setClient] = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    if (!clientId) return;
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const { client: data, summary: totais } = await api.get(`/clients/${clientId}`);
-      setClient(data);
-      setSummary(totais);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  // Sem cliente escolhido o painel esta fechado - devolver null
+  // evita uma chamada a /clients/null.
+  const buscar = useCallback(async () => {
+    if (!clientId) return null;
+    return api.get(`/clients/${clientId}`);
   }, [clientId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Trocar de cliente refaz a busca, e o hook descarta a
+  // resposta do anterior se ela chegar atrasada - era assim que
+  // o painel mostrava a ficha do cliente errado. Fechar zera o
+  // conteudo pelo mesmo caminho: clientId vira null, a busca
+  // devolve null e o painel volta ao esqueleto.
+  const { data, loading, error, reload } = useApiData(buscar, [clientId]);
 
-  // Fechar limpa o conteudo: sem isso, abrir outro cliente
-  // piscaria os dados do anterior antes de carregar os novos.
-  function handleOpenChange(open) {
-    if (!open) {
-      setClient(null);
-      setSummary(null);
-    }
-    onOpenChange(open);
-  }
+  const client = data?.client ?? null;
+  const summary = data?.summary ?? null;
 
   const ehEmpresa = client?.type === "COMPANY";
   const endereco = client ? enderecoEmLinha(client) : null;
 
   return (
-    <Sheet open={!!clientId} onOpenChange={handleOpenChange}>
+    <Sheet open={!!clientId} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2.5">
@@ -210,14 +191,9 @@ export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
 
         <div className="space-y-5 px-4 pb-6">
           {error ? (
-            <ErrorState message={error} onRetry={load} />
+            <ErrorState message={error} onRetry={reload} />
           ) : loading || !client ? (
-            <div className="space-y-3">
-              <Skeleton className="h-20 rounded-lg" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-16 rounded-lg" />
-              <Skeleton className="h-16 rounded-lg" />
-            </div>
+            <DetailSkeleton />
           ) : (
             <>
               {summary && <FinancialSummary summary={summary} />}
