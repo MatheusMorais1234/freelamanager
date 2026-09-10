@@ -15,7 +15,9 @@ import { z } from "zod";
 
 import { prisma } from "../lib/prisma.js";
 import { onlyDigits, isValidDocument } from "../lib/document.js";
-import { startOfToday } from "../lib/payment-status.js";
+import { startOfToday, paymentWhere } from "../lib/payment-status.js";
+import { money } from "../lib/money.js";
+import { updateOwned, deleteOwned } from "../lib/ownership.js";
 import { validate } from "../middlewares/validate.js";
 import { authenticate } from "../middlewares/auth.js";
 
@@ -34,6 +36,53 @@ const UF = [
 // Campo de texto opcional: aceita ausencia ou string vazia.
 const optionalText = (max) => z.string().trim().max(max).optional().or(z.literal(""));
 
+/**
+ * Site do cliente, normalizado na GRAVACAO.
+ *
+ * O usuario digita "exemplo.com.br" - e o placeholder do
+ * formulario pede exatamente isso. Sem esquema, esse texto vira
+ * um href RELATIVO na ficha do cliente: clicar levaria para
+ * /exemplo.com.br, ou seja, de volta para dentro do painel. Por
+ * isso completamos com https:// aqui, e nao na tela: o valor
+ * gravado e que precisa estar certo, para toda tela que ler
+ * depois estar certa junto.
+ *
+ * E so http/https passam. Um "javascript:alert(1)" gravado aqui
+ * viraria href executavel na ficha - o campo de site do cadastro
+ * nao pode ser um jeito de guardar codigo que roda no navegador
+ * de quem abrir o cliente.
+ *
+ * Devolve a URL completa, ou null quando o texto nao e um
+ * endereco aceitavel (o refine abaixo transforma isso em 400).
+ */
+function normalizeWebsite(value) {
+  const raw = String(value).trim();
+
+  // Esquema e o "https:" do comeco. A lista de caracteres nao
+  // inclui ponto de proposito: sem isso, "exemplo.com.br:8080"
+  // seria lido como o esquema "exemplo.com.br".
+  const temEsquema = /^[a-zA-Z][a-zA-Z0-9+-]*:/.test(raw);
+  const completo = temEsquema ? raw : `https://${raw}`;
+
+  let url;
+  try {
+    url = new URL(completo);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+
+  // Devolve o texto do usuario com o esquema na frente, e nao o
+  // url.href: este acrescentaria uma barra no fim e mudaria o
+  // que a pessoa digitou sem motivo.
+  return completo;
+}
+
+const websiteField = optionalText(180)
+  .transform((v) => (v ? normalizeWebsite(v) : v))
+  .refine((v) => v !== null, { error: "Endereco de site invalido" });
+
 const clientSchema = z
   .object({
     type: z.enum(["PERSON", "COMPANY"]).default("PERSON"),
@@ -49,7 +98,7 @@ const clientSchema = z
     email: z.email("E-mail invalido").optional().or(z.literal("")),
     phone: optionalText(20),
     mobile: optionalText(20),
-    website: optionalText(180),
+    website: websiteField,
 
     // Endereco
     zipCode: optionalText(9),
@@ -163,31 +212,35 @@ async function financeiroDoCliente(userId, contractIds) {
       where: { ...doCliente, paidAt: { not: null } },
       _sum: { amount: true },
     }),
+    // Os tres recortes ("recebido", "a receber", "atrasado")
+    // saem de payment-status.js, a mesma fonte que /payments usa
+    // para filtrar a lista. Reescrever o mapa aqui seria assinar
+    // que um dia esta tela discordaria da outra.
     prisma.payment.aggregate({
-      where: { ...doCliente, paidAt: { not: null } },
+      where: { ...doCliente, ...paymentWhere("PAID", hoje) },
       _sum: { amount: true },
     }),
     prisma.payment.aggregate({
-      where: { ...doCliente, paidAt: null, dueDate: { gte: hoje } },
+      where: { ...doCliente, ...paymentWhere("PENDING", hoje) },
       _sum: { amount: true },
     }),
     prisma.payment.aggregate({
-      where: { ...doCliente, paidAt: null, dueDate: { lt: hoje } },
+      where: { ...doCliente, ...paymentWhere("OVERDUE", hoje) },
       _sum: { amount: true },
     }),
   ]);
 
   return {
     paidByContract: new Map(
-      porContrato.map((r) => [r.contractId, (r._sum.amount ?? 0).toString()])
+      porContrato.map((r) => [r.contractId, money(r._sum.amount)])
     ),
     // Valores viajam como string, igual ao resto da API: o
     // Decimal do banco nao cabe em ponto flutuante sem perder
     // centavos.
     summary: {
-      paid: (recebido._sum.amount ?? 0).toString(),
-      pending: (aVencer._sum.amount ?? 0).toString(),
-      overdue: (atrasado._sum.amount ?? 0).toString(),
+      paid: money(recebido._sum.amount),
+      pending: money(aVencer._sum.amount),
+      overdue: money(atrasado._sum.amount),
     },
   };
 }
@@ -269,14 +322,17 @@ router.get("/:id", async (req, res, next) => {
 // ------------------------------------------------------------
 router.put("/:id", validate(clientSchema), async (req, res, next) => {
   try {
-    // updateMany aceita filtro composto e retorna quantas linhas
-    // mudaram - se for 0, ou nao existe ou nao e do usuario.
-    const result = await prisma.client.updateMany({
-      where: { id: req.params.id, userId: req.userId },
-      data: normalize(req.body),
-    });
+    // updateOwned poe o userId no where junto do id: se nada
+    // mudou, ou nao existe ou nao e do usuario - e as duas
+    // respostas sao 404, para nao confirmar ids alheios.
+    const alterado = await updateOwned(
+      prisma.client,
+      req.params.id,
+      req.userId,
+      normalize(req.body)
+    );
 
-    if (result.count === 0) {
+    if (!alterado) {
       return res.status(404).json({ error: "Cliente nao encontrado" });
     }
 
@@ -293,11 +349,7 @@ router.put("/:id", validate(clientSchema), async (req, res, next) => {
 router.delete("/:id", async (req, res, next) => {
   try {
     // Os contratos do cliente somem junto (onDelete: Cascade).
-    const result = await prisma.client.deleteMany({
-      where: { id: req.params.id, userId: req.userId },
-    });
-
-    if (result.count === 0) {
+    if (!(await deleteOwned(prisma.client, req.params.id, req.userId))) {
       return res.status(404).json({ error: "Cliente nao encontrado" });
     }
 

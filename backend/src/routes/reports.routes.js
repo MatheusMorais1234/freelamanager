@@ -22,11 +22,11 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { authenticate } from "../middlewares/auth.js";
 import { startOfToday } from "../lib/payment-status.js";
+import { PAYMENT_METHODS } from "../lib/enums.js";
+import { box } from "../lib/money.js";
 
 const router = Router();
 router.use(authenticate);
-
-const METHODS = ["PIX", "TRANSFER", "BOLETO", "CARD", "CASH", "OTHER"];
 
 /**
  * Le uma data do formato "AAAA-MM-DD" que vem na URL.
@@ -66,11 +66,6 @@ function resolvePeriod(query) {
   if (from > fim) return { from: fim, to: from, invertido: true };
 
   return { from, to: fim, invertido: false };
-}
-
-/** Decimal -> string, para nao perder centavo no JSON. */
-function money(value) {
-  return (value ?? 0).toString();
 }
 
 // ------------------------------------------------------------
@@ -218,10 +213,10 @@ router.get("/", async (req, res, next) => {
     // ---------- Formas de recebimento ----------
     // Parcela recebida sem forma anotada vira "OTHER", para a
     // soma das formas bater com o total recebido.
-    const metodos = new Map(METHODS.map((m) => [m, { total: 0, count: 0 }]));
+    const metodos = new Map(PAYMENT_METHODS.map((m) => [m, { total: 0, count: 0 }]));
 
     for (const linha of porMetodo) {
-      const chave = METHODS.includes(linha.method) ? linha.method : "OTHER";
+      const chave = PAYMENT_METHODS.includes(linha.method) ? linha.method : "OTHER";
       const atual = metodos.get(chave);
       atual.total += Number(linha._sum.amount ?? 0);
       atual.count += linha._count._all;
@@ -242,9 +237,9 @@ router.get("/", async (req, res, next) => {
           swapped: invertido,
         },
         totals: {
-          received: { count: recebido._count._all, total: money(recebido._sum.amount) },
-          pending: { count: aVencer._count._all, total: money(aVencer._sum.amount) },
-          overdue: { count: atrasado._count._all, total: money(atrasado._sum.amount) },
+          received: box(recebido),
+          pending: box(aVencer),
+          overdue: box(atrasado),
         },
         byClient,
         byMethod,
