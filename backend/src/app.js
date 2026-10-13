@@ -5,6 +5,9 @@
 // exporta. Quem liga na porta e o server.js.
 // ============================================================
 
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import express from "express";
 import cors from "cors";
 
@@ -24,6 +27,8 @@ const app = express();
 
 // 1) CORS: autoriza o frontend a chamar esta API.
 //    Sem isso o navegador bloqueia as requisicoes do React.
+//    Em producao o frontend e servido por este mesmo app (mesma
+//    origem), entao o CORS so importa no desenvolvimento.
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
@@ -36,22 +41,58 @@ app.use(
 app.use(express.json());
 
 // ------------------------------------------------------------
-// ROTAS
+// ROTAS DA API
 // ------------------------------------------------------------
+// Todas as rotas moram num Router, montado num prefixo:
+//   - desenvolvimento e testes: sem prefixo  (/auth/login)
+//   - producao: API_PREFIX="/api"           (/api/auth/login)
+// Em producao o prefixo e obrigatorio, porque as telas do React
+// usam os mesmos caminhos (/clients, /contracts...) e o servidor
+// precisa saber quando devolver JSON e quando devolver a tela.
+const api = express.Router();
 
 // GET /health -> "o servidor esta vivo?"
-app.get("/health", (req, res) => {
+api.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
 // Cada grupo de rotas mora no seu arquivo e e "montado" num
 // prefixo. Ex.: o "/login" dentro de auth.routes.js vira
 // "/auth/login" aqui.
-app.use("/auth", authRoutes);
-app.use("/clients", clientsRoutes);
-app.use("/contracts", contractsRoutes);
-app.use("/payments", paymentsRoutes);
-app.use("/reports", reportsRoutes);
+api.use("/auth", authRoutes);
+api.use("/clients", clientsRoutes);
+api.use("/contracts", contractsRoutes);
+api.use("/payments", paymentsRoutes);
+api.use("/reports", reportsRoutes);
+
+// 404 da API: caminho que nao existe. Fica dentro do Router para
+// que /api/qualquer-coisa responda JSON, e nao a tela do React.
+api.use((req, res) => {
+  res.status(404).json({ error: "Rota nao encontrada" });
+});
+
+const prefix = process.env.API_PREFIX || "";
+app.use(prefix || "/", api);
+
+// ------------------------------------------------------------
+// FRONTEND (so em producao)
+// ------------------------------------------------------------
+// Se o build do React existir (frontend/dist), este mesmo app
+// serve as telas. Qualquer GET que nao seja da API devolve o
+// index.html e o React Router decide o que mostrar.
+const dist = fileURLToPath(new URL("../../frontend/dist", import.meta.url));
+
+if (prefix && existsSync(dist)) {
+  // /assets tem hash no nome do arquivo (o Vite troca a cada build),
+  // entao pode ficar um ano em cache. O resto (favicon etc.), nao.
+  app.use("/assets", express.static(`${dist}/assets`, { maxAge: "1y", immutable: true }));
+  app.use(express.static(dist, { index: false }));
+  app.get("/{*rota}", (req, res) => {
+    // o index.html muda a cada deploy: nunca guardar em cache
+    res.set("Cache-Control", "no-cache");
+    res.sendFile("index.html", { root: dist });
+  });
+}
 
 // ------------------------------------------------------------
 // TRATAMENTO DE ERROS
