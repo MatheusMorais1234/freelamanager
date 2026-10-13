@@ -1,0 +1,12 @@
+{
+  "name": "freelamanager",
+  "private": true,
+  "description": "Raiz do deploy: monta frontend e backend e sobe tudo como um app Express so.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "npm ci --include=dev --prefix backend && npm ci --include=dev --prefix frontend && npm run build --prefix frontend && cd backend && npx prisma generate",
+    "start": "node backend/src/server.js"
+  }
+}
