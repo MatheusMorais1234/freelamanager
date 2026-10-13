@@ -5,6 +5,24 @@
 Sistema de gestão de **clientes, contratos e pagamentos** para freelancers.
 Projeto full-stack construído do zero: API REST autenticada por JWT e uma SPA em React.
 
+**▶ Demo no ar: [app.matheusmorais.com](https://app.matheusmorais.com)** — na tela de
+login, clique em **"Entrar com a conta de demonstração"** (`demo@freelamanager.com` /
+`demo1234`). Os dados de exemplo são recriados a cada 24 horas, então pode mexer à vontade.
+
+---
+
+## Como está no ar
+
+| Peça | Onde |
+|---|---|
+| API + telas | Hostinger (Node.js 24) — um app Express só: a API em `/api` e o build do React servido pelo próprio Express |
+| Banco | Neon (PostgreSQL serverless, região São Paulo) |
+| Variáveis | `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `API_PREFIX=/api`, `DEMO_RESET=1` — configuradas no painel da hospedagem, nunca no repositório |
+
+O `package.json` da raiz tem o `build` (instala as dependências, compila o frontend e gera
+o cliente do Prisma) e o `start`. Sem `API_PREFIX`, o backend sobe como sempre subiu, sem
+servir o frontend — é assim no desenvolvimento e nos testes.
+
 ---
 
 ## Stack
