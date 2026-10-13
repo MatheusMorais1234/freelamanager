@@ -163,8 +163,8 @@ export default function Landing() {
             <img
               src="/landing/painel.jpg"
               alt="Painel do FreelaManager com total de clientes, contratos, valores a receber e recebidos, gráfico de contratos por status e de faturamento mensal"
-              width="1600"
-              height="900"
+              width="1552"
+              height="698"
               className="block h-auto w-full"
             />
           </figure>
