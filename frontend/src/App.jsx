@@ -5,12 +5,13 @@
 // a pagina, o React so troca o componente exibido.
 // ============================================================
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import Layout from "./components/Layout.jsx";
 import Brand from "./components/Brand.jsx";
+import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -32,15 +33,17 @@ function SessionLoading() {
   );
 }
 
-// Porteiro das telas internas: sem usuario logado, manda pro login.
+// Porteiro das telas internas: sem usuario logado, manda pro login -
+// exceto na raiz ("/"), que para visitante e a pagina de apresentacao.
 // ATENCAO: isto e conveniencia de interface, NAO seguranca.
 // Quem protege os dados de verdade e o middleware do backend -
 // qualquer um pode burlar o React pelo devtools do navegador.
 function Private({ children }) {
   const { user, loading } = useAuth();
+  const { pathname } = useLocation();
 
   if (loading) return <SessionLoading />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return pathname === "/" ? <Landing /> : <Navigate to="/login" replace />;
 
   return children;
 }
