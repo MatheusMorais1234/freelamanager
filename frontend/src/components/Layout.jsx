@@ -1,14 +1,4 @@
-// ============================================================
-// Moldura das telas internas
-// ------------------------------------------------------------
-// Tres pecas fixas em volta do conteudo:
-//   - a coluna de navegacao (no celular vira uma gaveta);
-//   - a barra do topo, com o nome da tela e as acoes de conta;
-//   - a area central, onde o React Router encaixa a pagina.
-//
-// O mesmo JSX da navegacao serve ao desktop e ao celular - so
-// muda ONDE ele e renderizado.
-// ============================================================
+// Layout das telas internas: sidebar (gaveta no mobile), topo e conteudo
 
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -52,7 +42,6 @@ const NAV = [
   { to: "/reports", label: "Relatórios", icon: BarChart3 },
 ];
 
-// Nome da tela atual, usado no titulo da barra superior.
 function useCurrentPage() {
   const { pathname } = useLocation();
   return (
@@ -63,9 +52,6 @@ function useCurrentPage() {
 function NavItems({ onNavigate }) {
   return (
     <nav className="flex flex-1 flex-col gap-0.5">
-      {/* Sem o /70 no token: em 11px o texto ja e pequeno, e a
-          transparencia derrubava o contraste para 2.82:1 - o
-          pior do menu. Com o token cheio sao 5.05:1. */}
       <p className="mb-2 px-3 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
         Gestão
       </p>
@@ -81,8 +67,6 @@ function NavItems({ onNavigate }) {
                   : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
               )}
             >
-              {/* Marcador vertical do item ativo: diz onde o
-                  usuario esta sem depender so da cor do texto. */}
               <span
                 className={cn(
                   "absolute top-1.5 bottom-1.5 -left-1 w-1 rounded-full bg-primary transition-opacity",
@@ -106,17 +90,13 @@ function NavItems({ onNavigate }) {
   );
 }
 
-// Cartao do usuario no rodape da coluna: avatar, nome e um
-// menu com as acoes da conta.
 function AccountMenu() {
   const { user, logout } = useAuth();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        {/* <button> cru nao herda o foco visivel do ui/button,
-            entao quem navega por teclado nao via onde estava.
-            O anel abaixo e o mesmo do ui/button.jsx. */}
+        {/* button cru nao herda o focus ring do ui/button */}
         <button
           type="button"
           className="flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -126,7 +106,6 @@ function AccountMenu() {
               {initials(user?.name)}
             </AvatarFallback>
           </Avatar>
-          {/* min-w-0 permite o truncate funcionar dentro do flex */}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{user?.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
@@ -152,11 +131,6 @@ function AccountMenu() {
 function SidebarContent({ onNavigate }) {
   return (
     <div className="flex h-full flex-col">
-      {/* Cabecalho proprio com a MESMA altura da barra do topo
-          (h-14). Antes a marca vivia no p-4 do bloco todo e
-          ocupava ~68px, entao ela e o nome da tela ao lado
-          ficavam desalinhados por uns 6px - pouco para notar,
-          o bastante para a tela parecer torta. */}
       <div className="flex h-14 items-center px-4">
         <Brand />
       </div>
@@ -173,8 +147,7 @@ function SidebarContent({ onNavigate }) {
   );
 }
 
-// Botao de tema. O icone mostra para onde a acao LEVA (sol =
-// vai clarear), que e o que o usuario espera ao olhar.
+// icone mostra o tema pra onde vai
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const escuro = theme === "dark";
@@ -198,19 +171,16 @@ export default function Layout() {
   const page = useCurrentPage();
   const PageIcon = page.icon;
 
-  // Trocar de tela deve fechar a gaveta no celular.
+  // fecha a gaveta ao navegar
   useEffect(() => setMenuOpen(false), [pathname]);
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[16rem_1fr]">
-      {/* Coluna fixa - some no celular */}
       <aside className="sticky top-0 hidden h-svh border-r border-sidebar-border bg-sidebar md:block">
         <SidebarContent />
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        {/* Barra superior: no celular abre a gaveta, no desktop
-            situa o usuario na tela atual. */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-8">
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
@@ -224,17 +194,11 @@ export default function Layout() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 bg-sidebar p-0">
-              {/* Titulo exigido por leitores de tela; invisivel na tela */}
               <SheetTitle className="sr-only">Navegação</SheetTitle>
               <SidebarContent onNavigate={() => setMenuOpen(false)} />
             </SheetContent>
           </Sheet>
 
-          {/* No celular a barra mostrava a marca - que ja
-              aparece dentro da gaveta, a um toque de distancia -
-              e escondia o nome da tela justo onde nao ha coluna
-              lateral para dizer onde o usuario esta. Invertido:
-              o nome da tela vale nos dois tamanhos. */}
           <div className="flex min-w-0 items-center gap-2">
             <PageIcon className="size-4 shrink-0 text-muted-foreground" />
             <span className="truncate text-sm font-medium">{page.label}</span>
@@ -247,7 +211,6 @@ export default function Layout() {
 
         <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
           <div className="mx-auto w-full max-w-6xl">
-            {/* Outlet = onde o React Router encaixa a tela atual */}
             <Outlet />
           </div>
         </main>

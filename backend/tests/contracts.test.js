@@ -1,11 +1,3 @@
-// ============================================================
-// Contratos: cadastro, valores e os totais do painel
-// ------------------------------------------------------------
-// O ponto delicado aqui e o dinheiro. O valor trafega como
-// STRING no JSON de proposito: `Decimal` do banco nao cabe em
-// ponto flutuante sem risco de perder centavo, e um numero em
-// JavaScript e sempre ponto flutuante.
-// ============================================================
 
 import { describe, it, expect, afterEach } from "vitest";
 
@@ -120,7 +112,6 @@ describe("GET /contracts", () => {
 
     expect(concluidos.body.contracts.every((c) => c.status === "COMPLETED")).toBe(true);
     expect(concluidos.body.contracts).toHaveLength(1);
-    // O cenario ja cria um contrato, mais os dois daqui.
     expect(doCliente.body.contracts).toHaveLength(3);
   });
 
@@ -167,15 +158,12 @@ describe("GET /contracts/stats", () => {
     expect(stats.byStatus.ACTIVE.count).toBe(2);
     expect(Number(stats.byStatus.ACTIVE.total)).toBe(1500);
     expect(stats.byStatus.CANCELLED.count).toBe(1);
-    // Status sem nenhum contrato precisa aparecer zerado, e nao
-    // sumir: a tela le stats.byStatus.PENDING.count direto.
+    // status sem contrato tem que vir zerado
     expect(stats.byStatus.PENDING.count).toBe(0);
     expect(Number(stats.byStatus.PENDING.total)).toBe(0);
   });
 
   it("a rota /stats nao e confundida com um id", async () => {
-    // "/stats" precisa ser declarada ANTES de "/:id" no Express,
-    // senao "stats" casaria como se fosse o id de um contrato.
     const { usuario } = await cenario();
 
     const res = await usuario.get("/contracts/stats");

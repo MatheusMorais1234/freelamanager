@@ -1,10 +1,3 @@
-// ============================================================
-// AuthContext - quem esta logado, disponivel em todo o app
-// ------------------------------------------------------------
-// Context do React resolve o "prop drilling": sem ele, o usuario
-// logado teria que ser passado de componente em componente ate
-// chegar no cabecalho. Com Context, qualquer tela pede direto.
-// ============================================================
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { api, tokenStorage } from "../lib/api.js";
@@ -13,12 +6,10 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  // "loading" evita o pisca-pisca: sem ele, o app mostraria a
-  // tela de login por um instante antes de confirmar a sessao.
+  // evita piscar a tela de login
   const [loading, setLoading] = useState(true);
 
-  // Ao abrir o app: se existe token salvo, pergunta ao backend
-  // se ele ainda vale. O token pode ter expirado.
+  // confere se o token salvo ainda vale
   useEffect(() => {
     if (!tokenStorage.get()) {
       setLoading(false);
@@ -45,8 +36,6 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    // O JWT nao pode ser "cancelado" no servidor - sair e
-    // simplesmente jogar o token fora aqui.
     tokenStorage.clear();
     setUser(null);
   }

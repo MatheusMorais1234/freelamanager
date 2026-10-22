@@ -1,26 +1,17 @@
-// ============================================================
-// Formatacao para exibicao e mascaras de digitacao
-// ------------------------------------------------------------
-// Regra do projeto: o banco guarda documento, telefone e CEP
-// apenas com DIGITOS. A pontuacao existe so na tela. Isso evita
-// que "123.456.789-00" e "12345678900" virem cadastros
-// diferentes, e deixa a busca simples.
-// ============================================================
+// Formatacao e mascaras. No banco fica so digito.
 
 export function onlyDigits(value) {
   return String(value ?? "").replace(/\D/g, "");
 }
 
-// ---------- Exibicao ----------
+// Exibicao
 
-// O backend manda o valor como STRING ("4500.75") para nao
-// perder centavos. So convertemos para numero na hora de EXIBIR.
+// valor vem como string da API
 export function formatMoney(value) {
   const n = Number(value ?? 0);
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-// Versao curta para eixos de grafico: R$ 12,5 mil
 export function formatMoneyShort(value) {
   const n = Number(value ?? 0);
   if (Math.abs(n) >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1)} mi`;
@@ -30,18 +21,15 @@ export function formatMoneyShort(value) {
 
 export function formatDate(value) {
   if (!value) return "—";
-  // timeZone UTC: a data vem como "2026-03-10" e sem isso o
-  // navegador em fuso negativo mostraria 09/03.
+  // UTC senao em fuso negativo "2026-03-10" vira 09/03
   return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
-// Para preencher <input type="date">, que exige "AAAA-MM-DD".
 export function toInputDate(value) {
   if (!value) return "";
   return new Date(value).toISOString().slice(0, 10);
 }
 
-// "há 3 dias", "em 2 meses" - usa a API nativa do navegador.
 export function formatRelative(value) {
   if (!value) return "";
   const days = Math.round((new Date(value) - new Date()) / 86_400_000);
@@ -51,7 +39,6 @@ export function formatRelative(value) {
   return rtf.format(Math.round(days / 30), "month");
 }
 
-/** Quantos dias faltam para o prazo. Negativo = atrasado. */
 export function daysUntil(value) {
   if (!value) return null;
   const due = new Date(value);
@@ -60,15 +47,7 @@ export function daysUntil(value) {
   return Math.round((due - today) / 86_400_000);
 }
 
-/**
- * A frase que acompanha um vencimento: "3 dia(s) em atraso",
- * "vence hoje" ou "em 5 dia(s)".
- *
- * Estava escrita como uma cadeia de ternarios dentro do JSX de
- * tres telas. Trazida para ca, e uma funcao pura - da para
- * testar sem montar componente nenhum, que e onde este projeto
- * concentra os testes do frontend.
- */
+// "3 dia(s) em atraso", "vence hoje", "em 5 dia(s)"
 export function dueLabel(days) {
   if (days === null || days === undefined) return "";
   if (days < 0) return `${Math.abs(days)} dia(s) em atraso`;
@@ -76,11 +55,6 @@ export function dueLabel(days) {
   return `em ${days} dia(s)`;
 }
 
-/**
- * Quantos itens ha em cada status, mais o total em "ALL".
- * O mesmo useMemo aparecia em Contratos e Pagamentos, mudando
- * so a lista de status.
- */
 export function countByStatus(lista, statuses) {
   const itens = lista ?? [];
   const base = { ALL: itens.length };
@@ -90,7 +64,7 @@ export function countByStatus(lista, statuses) {
   return base;
 }
 
-// ---------- Documentos ----------
+// Documentos
 
 export function formatCPF(value) {
   return onlyDigits(value)
@@ -114,9 +88,9 @@ export function formatDocument(value, type) {
   return type === "COMPANY" ? formatCNPJ(value) : formatCPF(value);
 }
 
-// ---------- Telefone e CEP ----------
+// Telefone e CEP
 
-// Aceita fixo (10 digitos) e celular (11 digitos).
+// fixo (10) ou celular (11)
 export function formatPhone(value) {
   const d = onlyDigits(value).slice(0, 11);
   if (d.length <= 10) {
@@ -131,7 +105,7 @@ export function formatZip(value) {
     .replace(/(\d{5})(\d{1,3})$/, "$1-$2");
 }
 
-// ---------- Validacao (espelha o backend) ----------
+// Validacao (mesma do backend)
 
 function checkDigit(digits, weights) {
   const sum = digits.reduce((acc, d, i) => acc + d * weights[i], 0);
@@ -161,13 +135,12 @@ export function isValidCNPJ(value) {
   );
 }
 
-/** Documento em branco e aceito: nem todo cliente informa o seu. */
 export function isValidDocument(value, type) {
   if (!onlyDigits(value)) return true;
   return type === "COMPANY" ? isValidCNPJ(value) : isValidCPF(value);
 }
 
-// ---------- Rotulos ----------
+// Rotulos
 
 export const STATUS_LABEL = {
   PENDING: "Pendente",
@@ -178,11 +151,8 @@ export const STATUS_LABEL = {
 
 export const STATUS_LIST = ["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"];
 
-// ---------- Pagamentos ----------
+// Pagamentos
 
-// O status de uma parcela nao vem gravado no banco: o backend o
-// calcula comparando a data de recebimento, o vencimento e hoje.
-// Aqui so damos nome a cada um dos tres casos.
 export const PAYMENT_STATUS_LABEL = {
   PENDING: "A receber",
   PAID: "Recebido",
@@ -202,11 +172,7 @@ export const PAYMENT_METHOD_LABEL = {
 
 export const PAYMENT_METHOD_LIST = ["PIX", "TRANSFER", "BOLETO", "CARD", "CASH", "OTHER"];
 
-/**
- * Quanto de um contrato ja foi recebido, de 0 a 100.
- * Contrato de valor zero devolve 100 - senao a divisao daria
- * NaN e a barra de progresso sumiria da tela.
- */
+// % recebido. Valor zero = 100 (evita NaN)
 export function paidPercent(paid, total) {
   const t = Number(total ?? 0);
   if (t <= 0) return 100;
@@ -224,7 +190,6 @@ export const UF_LIST = [
   "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
 ];
 
-/** Iniciais para o avatar: "Maria Silva Souza" -> "MS" */
 export function initials(name) {
   const parts = String(name ?? "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";

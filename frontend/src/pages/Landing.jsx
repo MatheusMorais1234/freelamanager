@@ -1,14 +1,4 @@
-// ============================================================
-// Landing.jsx - pagina inicial para quem nao esta logado
-// ------------------------------------------------------------
-// Mora no mesmo endereco do painel ("/"): o porteiro do App.jsx
-// mostra esta tela quando nao ha usuario e o painel quando ha.
-// Assim o link que se compartilha e um so.
-//
-// Tudo aqui descreve o que o sistema JA faz - nada de recurso
-// prometido. O login social, por exemplo, ainda e so visual,
-// entao nao aparece.
-// ============================================================
+// Landing pra visitante (mesma rota "/" do painel)
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -29,8 +19,6 @@ import Brand from "@/components/Brand.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import { cn } from "@/lib/utils.js";
 
-// O "lg" do design system (h-9) e pensado para formularios; na landing
-// o botao principal precisa de mais presenca.
 const GRANDE = "h-11 px-5 text-[15px]";
 
 const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL;
@@ -106,7 +94,7 @@ function BotaoDemo({ className, size = "lg" }) {
 export default function Landing() {
   return (
     <div className="auth-bg min-h-svh text-foreground">
-      {/* ---------- topo ---------- */}
+      {/* topo */}
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
         <Brand />
         <nav className="flex items-center gap-2">
@@ -120,7 +108,7 @@ export default function Landing() {
       </header>
 
       <main>
-        {/* ---------- hero ---------- */}
+        {/* hero */}
         <section className="mx-auto max-w-6xl px-4 pt-10 pb-14 text-center sm:px-6 sm:pt-16">
           <p className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground">
             <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
@@ -170,7 +158,7 @@ export default function Landing() {
           </figure>
         </section>
 
-        {/* ---------- recursos ---------- */}
+        {/* recursos */}
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6" aria-labelledby="recursos-h">
           <h2 id="recursos-h" className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
             O que dá para fazer
@@ -188,7 +176,7 @@ export default function Landing() {
           </ul>
         </section>
 
-        {/* ---------- como funciona ---------- */}
+        {/* como funciona */}
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6" aria-labelledby="passos-h">
           <h2 id="passos-h" className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
             Como funciona
@@ -206,7 +194,7 @@ export default function Landing() {
           </ol>
         </section>
 
-        {/* ---------- codigo aberto ---------- */}
+        {/* codigo aberto */}
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
           <div className="flex flex-col items-start gap-6 rounded-2xl border border-border bg-card p-6 sm:p-8 md:flex-row md:items-center md:justify-between">
             <div className="max-w-2xl">
@@ -230,7 +218,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ---------- chamada final ---------- */}
+        {/* chamada final */}
         <section className="mx-auto max-w-3xl px-4 pt-6 pb-20 text-center sm:px-6">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Pare de cobrar de cabeça

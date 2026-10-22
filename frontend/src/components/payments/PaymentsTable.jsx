@@ -1,10 +1,4 @@
-// ============================================================
 // Tabela de parcelas
-// ------------------------------------------------------------
-// So desenha: quem carrega, filtra e salva e a pagina. Aqui
-// ficam as sete colunas e as duas acoes que moram na linha -
-// a baixa rapida ("recebi por Pix") e o menu de ações.
-// ============================================================
 
 import { CheckCircle2, Loader2, MoreHorizontal, Undo2 } from "lucide-react";
 
@@ -36,14 +30,6 @@ import {
   TableRow,
 } from "@/components/ui/table.jsx";
 
-/**
- * @param {Array}    payments
- * @param {string}   settlingId  id da linha sendo baixada agora
- * @param {Function} onSettle    (parcela, forma)
- * @param {Function} onUnsettle  (parcela)
- * @param {Function} onEdit      (parcela)
- * @param {Function} onDelete    (parcela)
- */
 export function PaymentsTable({
   payments,
   settlingId,
@@ -86,19 +72,12 @@ export function PaymentsTable({
 
             <TableCell>
               <p className="tabular text-muted-foreground">{formatDate(p.dueDate)}</p>
-              {/* A regra de quando o aviso cabe e desta tela: parcela
-                  ja recebida nao tem prazo, e prazo distante nao
-                  precisa de alarde. */}
               <DueHint
                 dueDate={p.dueDate}
                 hide={p.status === "PAID" || daysUntil(p.dueDate) > 7}
               />
             </TableCell>
 
-            {/* min-h-9: esta celula alterna entre duas linhas de texto
-                e um botao pequeno. Sem altura reservada, a tabela
-                ficava com linhas de alturas diferentes conforme a
-                parcela ja tivesse sido recebida ou nao. */}
             <TableCell>
               <div className="flex min-h-9 flex-col justify-center">
                 {p.paidAt ? (
@@ -118,9 +97,6 @@ export function PaymentsTable({
                     Salvando
                   </span>
                 ) : (
-                  // Baixar a parcela e a acao mais frequente da
-                  // tela, entao ela fica a um clique - e o menu
-                  // ja pergunta a forma no mesmo gesto.
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="gap-1.5 self-start">

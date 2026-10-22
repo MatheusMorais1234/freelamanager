@@ -1,14 +1,4 @@
-// ============================================================
-// Marca do produto
-// ------------------------------------------------------------
-// O simbolo e um SVG inline (e nao um <img>) para nao gerar uma
-// segunda requisicao de rede e ficar nitido em qualquer tamanho.
-//
-// Desenho: uma pasta (os contratos organizados) com uma seta de
-// crescimento (o dinheiro entrando). As cores sao as da marca e
-// nao as do tema: o simbolo e o mesmo no claro e no escuro, como
-// o favicon (public/favicon.svg, mesmo desenho).
-// ============================================================
+// Logo em SVG inline (mesmo desenho do favicon)
 
 import { cn } from "@/lib/utils.js";
 

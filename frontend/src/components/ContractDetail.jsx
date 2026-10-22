@@ -1,12 +1,4 @@
-// ============================================================
-// Detalhe de um contrato - o trabalho e o dinheiro dele
-// ------------------------------------------------------------
-// A tabela de contratos mostra uma linha por trabalho. Quem quer
-// saber "e ai, quanto falta receber disso?" precisa abrir aqui.
-//
-// Os dados vem de GET /contracts/:id, que ja traz cliente e
-// parcelas junto - uma chamada, nao tres.
-// ============================================================
+// Detalhe do contrato com as parcelas (GET /contracts/:id)
 
 import { useCallback } from "react";
 import { Link } from "react-router-dom";
@@ -34,7 +26,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet.jsx";
 
-/** Um dado solto: rotulo em cima, valor embaixo. */
 function Field({ label, children, className }) {
   return (
     <div className={className}>
@@ -46,13 +37,7 @@ function Field({ label, children, className }) {
   );
 }
 
-/**
- * Quanto do contrato ja entrou: barra, valor e o que falta.
- * O "falta" pode ficar negativo se o freelancer registrar
- * parcelas acima do valor combinado (aditivo, hora extra), e
- * isso e legitimo - por isso mostramos o excedente em vez de
- * cortar em zero.
- */
+// Barra de recebido. "Falta" pode ficar negativo (aditivo), entao mostra o excedente.
 function PaymentSummary({ paid, total }) {
   const paidValue = Number(paid ?? 0);
   const totalValue = Number(total ?? 0);
@@ -112,19 +97,12 @@ function PaymentSummary({ paid, total }) {
 }
 
 export default function ContractDetail({ contractId, onOpenChange }) {
-  // Sem contrato escolhido o painel esta fechado - devolver
-  // null evita uma chamada a /contracts/null.
   const buscar = useCallback(async () => {
     if (!contractId) return null;
     const { contract: data } = await api.get(`/contracts/${contractId}`);
     return data;
   }, [contractId]);
 
-  // Trocar de contrato refaz a busca, e o hook descarta a
-  // resposta do anterior se ela chegar atrasada - era assim que
-  // o painel mostrava os dados do contrato errado. Fechar zera
-  // o conteudo pelo mesmo caminho: contractId vira null, a
-  // busca devolve null e o painel volta ao esqueleto.
   const { data: contract, loading, error, reload } = useApiData(buscar, [contractId]);
 
   return (
@@ -184,9 +162,6 @@ export default function ContractDetail({ contractId, onOpenChange }) {
                     Parcelas ({contract.payments.length})
                   </h3>
 
-                  {/* Leva para a tela de pagamentos ja filtrada
-                      neste contrato - editar e dar baixa moram la,
-                      e nao vale duplicar aquilo aqui dentro. */}
                   <Button asChild variant="ghost" size="sm" className="gap-1.5">
                     <Link to={`/payments?contract=${contract.id}`}>
                       Gerenciar

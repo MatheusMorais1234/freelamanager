@@ -1,15 +1,4 @@
-// ============================================================
-// Isolamento entre usuarios
-// ------------------------------------------------------------
-// O teste mais importante do projeto. O sistema guarda dados de
-// varios freelancers na MESMA tabela; o que separa um do outro
-// e o filtro por userId em toda consulta. Se esse filtro cair
-// em alguma rota, um usuario passa a ver a carteira de clientes
-// do outro - e nenhuma tela acusaria o problema.
-//
-// A regra esperada e 404, nao 403: responder "existe, mas voce
-// nao pode" ja entrega que aquele id existe.
-// ============================================================
+// Usuario A nao pode ver nem mexer nos dados do B. Espera 404, nao 403.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
@@ -87,7 +76,6 @@ describe("escrita nos dados alheios", () => {
     const res = await intruso.put(`/clients/${cliente.id}`, { name: "Invadido" });
     expect(res.status).toBe(404);
 
-    // E o nome continua o mesmo para quem e dono.
     const conferindo = await dono.get(`/clients/${cliente.id}`);
     expect(conferindo.body.client.name).toBe("Cliente de Teste");
   });
@@ -116,7 +104,6 @@ describe("escrita nos dados alheios", () => {
     const res = await intruso.patch(`/payments/${parcela.id}/settle`, { paid: true });
     expect(res.status).toBe(404);
 
-    // A parcela segue em aberto.
     const conferindo = await dono.get(`/payments/${parcela.id}`);
     expect(conferindo.body.payment.paidAt).toBeNull();
   });
@@ -124,8 +111,6 @@ describe("escrita nos dados alheios", () => {
 
 describe("criacao apontando para dados alheios", () => {
   it("nao consegue criar contrato no cliente do dono", async () => {
-    // Se essa checagem faltasse, o intruso escreveria dentro da
-    // carteira de outra pessoa apenas adivinhando um id.
     const res = await intruso.post("/contracts", {
       clientId: cliente.id,
       title: "Contrato intruso",
@@ -146,8 +131,7 @@ describe("criacao apontando para dados alheios", () => {
   });
 
   it("o userId vem do token, nao do corpo da requisicao", async () => {
-    // Mandar userId do dono no body nao pode transferir o
-    // registro: o backend ignora esse campo e usa o token.
+    // userId no body e ignorado
     const res = await intruso.post("/clients", {
       name: "Tentativa de troca de dono",
       userId: dono.id,

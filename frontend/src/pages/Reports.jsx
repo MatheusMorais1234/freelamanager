@@ -1,14 +1,3 @@
-// ============================================================
-// Relatorios - o fechamento de um periodo
-// ------------------------------------------------------------
-// O painel responde "como esta o negocio hoje". Esta tela
-// responde "o que aconteceu entre duas datas" - que e o que se
-// leva para o contador no fim do mes, ou o que responde "quais
-// clientes realmente pagam".
-//
-// A exportacao em CSV existe porque, na pratica, o proximo
-// destino desse numero e uma planilha.
-// ============================================================
 
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -50,13 +39,10 @@ import {
   TableRow,
 } from "@/components/ui/table.jsx";
 
-/** Data em "AAAA-MM-DD", que e o formato do <input type="date">. */
 function iso(date) {
   return date.toISOString().slice(0, 10);
 }
 
-// Atalhos de periodo. Digitar duas datas para ver "este mes" e
-// trabalho que o sistema pode poupar.
 function atalhos() {
   const hoje = new Date();
   const ano = hoje.getFullYear();
@@ -92,11 +78,7 @@ export default function Reports() {
   const buscar = useCallback(async () => {
     const { report: data } = await api.get(`/reports?from=${from}&to=${to}`);
 
-    // O backend conserta datas invertidas; a tela precisa
-    // acompanhar, senao os campos mostrariam uma coisa e o
-    // relatorio abaixo mostraria outra. Mudar from/to dispara
-    // outra busca - que ja vem sem "swapped" e encerra a ida e
-    // volta.
+    // backend troca datas invertidas, aqui acompanha nos campos
     if (data.period.swapped) {
       setFrom(data.period.from);
       setTo(data.period.to);
@@ -106,9 +88,6 @@ export default function Reports() {
     return data;
   }, [from, to]);
 
-  // Aqui o array de dependencias importa de verdade: trocar o
-  // periodo refaz a busca, e o hook descarta a resposta da
-  // consulta anterior se ela chegar atrasada.
   const { data: report, loading, error, reload } = useApiData(buscar, [from, to]);
 
   const monthlyData = useMemo(() => {
@@ -133,7 +112,6 @@ export default function Reports() {
     setTo(a.to);
   }
 
-  // ---------- Exportacao ----------
   function exportarClientes() {
     const linhas = report.byClient.map((c) => ({
       Cliente: c.name,
@@ -182,7 +160,7 @@ export default function Reports() {
         </Button>
       </PageHeader>
 
-      {/* ---------------- Seletor de periodo ---------------- */}
+      {/* Seletor de periodo */}
       <Card className="mb-4">
         <CardContent className="flex flex-col gap-4 py-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-wrap items-end gap-3">
@@ -275,7 +253,7 @@ export default function Reports() {
             </Card>
           ) : (
             <>
-              {/* ---------------- Faturamento no periodo ---------------- */}
+              {/* Faturamento no periodo */}
               {monthlyData.length > 0 && (
                 <Card className="mt-4">
                   <CardHeader>
@@ -294,7 +272,7 @@ export default function Reports() {
                 </Card>
               )}
 
-              {/* ---------------- Por cliente ---------------- */}
+              {/* Por cliente */}
               <Card className="mt-4 overflow-hidden">
                 <CardHeader className="flex-row items-center justify-between space-y-0">
                   <div className="space-y-1.5">
@@ -361,9 +339,6 @@ export default function Reports() {
                         ))}
                       </TableBody>
 
-                      {/* Rodape com o total: a tabela precisa
-                          fechar a conta na propria tela, e nao
-                          obrigar quem le a somar de cabeca. */}
                       <TableFooter>
                         <TableRow>
                           <TableCell colSpan={2} className="font-medium">
@@ -385,7 +360,7 @@ export default function Reports() {
                 )}
               </Card>
 
-              {/* ---------------- Por forma de recebimento ---------------- */}
+              {/* Por forma de recebimento */}
               {report.byMethod.length > 0 && (
                 <Card className="mt-4">
                   <CardHeader className="flex-row items-center justify-between space-y-0">

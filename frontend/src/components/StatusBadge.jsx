@@ -1,13 +1,4 @@
-// Selo colorido do status de um contrato.
-// A cor tambem aparece nos graficos do painel - as duas leem
-// as mesmas variaveis de tema, entao nunca saem de sincronia.
-//
-// Repare no par de tokens: a BORDA e o FUNDO usam a cor viva
-// (--primary, --success), o TEXTO usa a variante *-emphasis.
-// No tema claro o ambar da marca so tem 2.11:1 contra o proprio
-// fundo do selo - ilegivel; o -emphasis leva a 4.66:1 e passa em
-// AA. No tema escuro os dois tokens sao a mesma cor, entao o
-// selo continua exatamente como era.
+// Badge de status. Texto usa -emphasis (o ambar puro nao passa em AA no tema claro).
 
 import { Clock, Loader, CheckCircle2, XCircle, AlertCircle, CircleDollarSign } from "lucide-react";
 
@@ -37,8 +28,6 @@ export const STATUS_STYLE = {
   },
 };
 
-// Cores do status de uma PARCELA. Sao tres, nao quatro: uma
-// parcela ou foi recebida, ou vence adiante, ou venceu.
 export const PAYMENT_STATUS_STYLE = {
   PENDING: {
     icon: CircleDollarSign,
@@ -57,9 +46,6 @@ export const PAYMENT_STATUS_STYLE = {
   },
 };
 
-// A casca visual e a mesma para contrato e parcela; so muda a
-// tabela de estilo e o rotulo. Duplicar este JSX faria os dois
-// selos irem se distanciando a cada ajuste de design.
 function Badge({ style, label, className }) {
   if (!style) return null;
 

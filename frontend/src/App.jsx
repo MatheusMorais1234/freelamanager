@@ -1,9 +1,3 @@
-// ============================================================
-// App.jsx - o mapa de rotas do frontend
-// ------------------------------------------------------------
-// Aqui e "roteamento de cliente": trocar de tela nao recarrega
-// a pagina, o React so troca o componente exibido.
-// ============================================================
 
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -20,8 +14,7 @@ import Contracts from "./pages/Contracts.jsx";
 import Payments from "./pages/Payments.jsx";
 import Reports from "./pages/Reports.jsx";
 
-// Tela cheia mostrada enquanto o app confere se o token salvo
-// ainda vale. Dura um piscar de olhos em rede boa.
+// enquanto confere o token salvo
 function SessionLoading() {
   return (
     <div className="auth-bg grid min-h-svh place-items-center gap-4">
@@ -33,11 +26,7 @@ function SessionLoading() {
   );
 }
 
-// Porteiro das telas internas: sem usuario logado, manda pro login -
-// exceto na raiz ("/"), que para visitante e a pagina de apresentacao.
-// ATENCAO: isto e conveniencia de interface, NAO seguranca.
-// Quem protege os dados de verdade e o middleware do backend -
-// qualquer um pode burlar o React pelo devtools do navegador.
+// Telas internas. Visitante na raiz ve a landing.\nIsso e so UX, quem protege os dados e o backend.
 function Private({ children }) {
   const { user, loading } = useAuth();
   const { pathname } = useLocation();
@@ -48,7 +37,6 @@ function Private({ children }) {
   return children;
 }
 
-// Ja logado nao deve ver a tela de login.
 function PublicOnly({ children }) {
   const { user, loading } = useAuth();
 
@@ -80,8 +68,7 @@ export default function App() {
             }
           />
 
-          {/* Rotas aninhadas: todas compartilham o Layout
-              (a barra lateral nao e redesenhada a cada troca) */}
+          {/* rotas internas usam o Layout */}
           <Route
             element={
               <Private>
@@ -96,7 +83,6 @@ export default function App() {
             <Route path="/reports" element={<Reports />} />
           </Route>
 
-          {/* Qualquer outro endereco volta para a home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

@@ -1,5 +1,3 @@
-// Roda uma vez antes dos testes. Le o .env e joga na
-// process.env, do mesmo jeito que o server.js faz em producao.
 import "dotenv/config";
 
 if (!process.env.DATABASE_URL) {

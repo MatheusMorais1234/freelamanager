@@ -1,19 +1,10 @@
-// ============================================================
-// Validacao de CPF e CNPJ
-// ------------------------------------------------------------
-// CPF e CNPJ nao sao numeros quaisquer: os ultimos digitos sao
-// "digitos verificadores", calculados a partir dos anteriores.
-// Conferir isso rejeita erro de digitacao ANTES de gravar - o
-// que so olhar a quantidade de digitos nao pega.
-// ============================================================
+// Validacao de CPF/CNPJ (digitos verificadores)
 
-/** Remove tudo que nao for digito: "123.456.789-00" -> "12345678900" */
 export function onlyDigits(value) {
   return String(value ?? "").replace(/\D/g, "");
 }
 
-// Regra comum ao CPF e ao CNPJ: multiplica cada digito por um
-// peso, soma tudo, e o resto da divisao por 11 vira o digito.
+// soma ponderada, resto da divisao por 11
 function checkDigit(digits, weights) {
   const sum = digits.reduce((acc, d, i) => acc + d * weights[i], 0);
   const rest = sum % 11;
@@ -24,8 +15,7 @@ export function isValidCPF(value) {
   const cpf = onlyDigits(value);
   if (cpf.length !== 11) return false;
 
-  // Sequencias como 111.111.111-11 passam no calculo dos
-  // digitos, mas nao existem. Precisam ser barradas na mao.
+  // 111.111.111-11 e afins passam na conta mas sao invalidos
   if (/^(\d)\1{10}$/.test(cpf)) return false;
 
   const d = cpf.split("").map(Number);
@@ -50,10 +40,7 @@ export function isValidCNPJ(value) {
   return d[12] === first && d[13] === second;
 }
 
-/**
- * Valida o documento de acordo com o tipo do cliente.
- * Documento vazio e aceito: nem todo cliente informa o seu.
- */
+// Vazio e valido (documento e opcional)
 export function isValidDocument(value, type) {
   const digits = onlyDigits(value);
   if (!digits) return true;

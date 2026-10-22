@@ -1,27 +1,16 @@
-// ============================================================
-// FreelaManager - Schema do banco de dados
-// ============================================================
-// Este arquivo e a "planta baixa" do banco. A partir dele o Prisma:
-//   1. gera o SQL que cria/altera as tabelas  -> prisma migrate
-//   2. gera o codigo JS com autocomplete      -> prisma generate
-// ============================================================
+// FreelaManager
 
-// COMO O CODIGO JS E GERADO
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
   moduleFormat = "esm"
 }
 
-// QUAL BANCO ESTAMOS USANDO
-// A URL de conexao NAO fica aqui: ela vem do .env, via prisma.config.ts
+// URL vem do .env (prisma.config.ts)
 datasource db {
   provider = "postgresql"
 }
 
-// ------------------------------------------------------------
-// ENUM: lista fechada de valores permitidos para o status
-// ------------------------------------------------------------
 enum ContractStatus {
   PENDING // aguardando aprovacao do cliente
   ACTIVE // em andamento
@@ -29,11 +18,6 @@ enum ContractStatus {
   CANCELLED // cancelado
 }
 
-// ------------------------------------------------------------
-// Como o pagamento entrou. Lista fechada para o relatorio
-// poder agrupar - se fosse texto livre, "Pix", "PIX" e "pix"
-// virariam tres formas de pagamento diferentes.
-// ------------------------------------------------------------
 enum PaymentMethod {
   PIX
   TRANSFER // transferencia bancaria / TED
@@ -43,17 +27,12 @@ enum PaymentMethod {
   OTHER
 }
 
-// Pessoa Fisica (CPF) ou Pessoa Juridica (CNPJ). Define quais
-// campos do cadastro fazem sentido: PF tem data de nascimento,
-// PJ tem nome fantasia e inscricao estadual.
+// PF ou PJ
 enum ClientType {
   PERSON
   COMPANY
 }
 
-// ------------------------------------------------------------
-// USER - o freelancer que usa o sistema
-// ------------------------------------------------------------
 model User {
   id           String   @id @default(uuid())
   name         String   @db.VarChar(120)
@@ -61,8 +40,6 @@ model User {
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  // Lado "um" do relacionamento: um User tem muitos Clients e Contracts.
-  // Estes campos NAO viram colunas no banco - sao atalhos de leitura.
   clients   Client[]
   contracts Contract[]
   payments  Payment[]
@@ -70,37 +47,26 @@ model User {
   @@map("users")
 }
 
-// ------------------------------------------------------------
-// CLIENT - as empresas/pessoas para quem o freelancer trabalha
-// ------------------------------------------------------------
 model Client {
   id     String     @id @default(uuid())
   userId String     @map("user_id")
   type   ClientType @default(PERSON)
 
-  // --- Identificacao ---
-  // name  = nome completo (PF) ou razao social (PJ)
-  // trade = nome fantasia, so faz sentido para PJ
+  // name = nome ou razao social, trade = nome fantasia
   name    String  @db.VarChar(120)
   company String? @db.VarChar(120)
 
-  // Documento guardado SO COM DIGITOS (11 = CPF, 14 = CNPJ).
-  // Gravar sem pontuacao evita que "123.456.789-00" e
-  // "12345678900" virem dois cadastros diferentes; a mascara
-  // e aplicada apenas na exibicao.
+  // so digitos
   document String? @db.VarChar(14)
 
-  // Inscricao estadual (PJ) e data de nascimento (PF)
   stateRegistration String?   @map("state_registration") @db.VarChar(20)
   birthDate         DateTime? @map("birth_date") @db.Date
 
-  // --- Contato ---
   email   String? @db.VarChar(180)
   phone   String? @db.VarChar(20)
   mobile  String? @db.VarChar(20)
   website String? @db.VarChar(180)
 
-  // --- Endereco ---
   zipCode    String? @map("zip_code") @db.VarChar(8)
   street     String? @db.VarChar(160)
   number     String? @db.VarChar(20)
@@ -114,21 +80,15 @@ model Client {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Lado "muitos": cada Client pertence a exatamente um User.
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   contracts Contract[]
 
-  // Um mesmo CPF/CNPJ nao pode se repetir para o MESMO usuario,
-  // mas dois freelancers diferentes podem ter o mesmo cliente.
-  // Por isso a unicidade e composta (userId + document).
+  // CPF/CNPJ unico por usuario
   @@unique([userId, document], name: "client_user_document")
   @@index([userId])
   @@map("clients")
 }
 
-// ------------------------------------------------------------
-// CONTRACT - os trabalhos contratados
-// ------------------------------------------------------------
 model Contract {
   id          String         @id @default(uuid())
   clientId    String         @map("client_id")
@@ -143,8 +103,6 @@ model Contract {
 
   client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Apagar o contrato apaga as parcelas junto (onDelete no Payment):
-  // parcela sem contrato nao significa nada.
   payments Payment[]
 
   @@index([userId])
@@ -153,34 +111,21 @@ model Contract {
   @@map("contracts")
 }
 
-// ------------------------------------------------------------
-// PAYMENT - as parcelas de um contrato
-// ------------------------------------------------------------
-// Um contrato tem um valor total; um pagamento e cada pedaco
-// desse valor que foi combinado para uma data. Sem esta tabela
-// o sistema so saberia "quanto foi contratado", nunca "quanto
-// ja entrou no caixa".
 model Payment {
   id         String @id @default(uuid())
   contractId String @map("contract_id")
   userId     String @map("user_id")
 
-  // Rotulo curto da parcela: "Entrada", "Parcela 2/3", "Final".
+  // ex: "Entrada", "Parcela 2/3"
   description String? @db.VarChar(160)
 
   amount Decimal @db.Decimal(12, 2)
 
-  // Quando foi combinado receber.
   dueDate DateTime @map("due_date") @db.Date
 
-  // Quando de fato entrou. NULO = ainda nao recebido.
-  // Este campo unico substitui um "status" gravado: guardar o
-  // status daria margem a inconsistencia (marcado como pago sem
-  // data, ou com data e marcado como pendente). Aqui a data e a
-  // unica verdade, e o status e DERIVADO dela na leitura.
+  // null = em aberto. Status e calculado a partir daqui.
   paidAt DateTime? @map("paid_at") @db.Date
 
-  // Como o dinheiro entrou. So faz sentido junto com paidAt.
   method PaymentMethod?
 
   notes String?
@@ -193,8 +138,6 @@ model Payment {
 
   @@index([userId])
   @@index([contractId])
-  // Buscar "o que vence nos proximos dias" e a consulta mais
-  // comum da tela de pagamentos - por isso a data tem indice.
   @@index([dueDate])
   @@map("payments")
 }

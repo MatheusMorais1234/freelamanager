@@ -1,16 +1,4 @@
-// ============================================================
-// Ferramentas usadas por todos os testes
-// ------------------------------------------------------------
-// A ideia central: cada teste cria a PROPRIA conta, com e-mail
-// aleatorio, e apaga tudo no fim. Como cada linha do banco
-// pertence a um usuario (e o delete do usuario leva clientes,
-// contratos e parcelas junto, pelo onDelete: Cascade), os
-// testes nao esbarram uns nos outros nem sujam o banco de
-// desenvolvimento.
-//
-// Nao ha banco separado de proposito: o projeto e didatico e
-// nao pede infraestrutura extra para rodar.
-// ============================================================
+// Cada teste cria a propria conta e apaga no final (cascade limpa o resto)
 
 import request from "supertest";
 import { randomUUID } from "node:crypto";
@@ -20,16 +8,11 @@ import { prisma } from "../src/lib/prisma.js";
 
 export { app, request };
 
-/** E-mail que nunca colide com outro teste nem com dado real. */
 export function emailUnico(prefixo = "teste") {
   return `${prefixo}-${randomUUID().slice(0, 8)}@teste.local`;
 }
 
-/**
- * Cria uma conta e devolve o token junto de atalhos que ja
- * mandam o cabecalho de autenticacao. Sem isso, cada chamada
- * repetiria .set("Authorization", `Bearer ${token}`).
- */
+// Cria conta e devolve helpers ja autenticados
 export async function criarUsuario(nome = "Fulano de Teste") {
   const email = emailUnico();
   const password = "senha-de-teste-123";
@@ -58,7 +41,6 @@ export async function criarUsuario(nome = "Fulano de Teste") {
   };
 }
 
-/** Apaga as contas criadas no teste - e, em cascata, os dados delas. */
 export async function apagarUsuarios(...usuarios) {
   const ids = usuarios.filter(Boolean).map((u) => u.id);
   if (ids.length === 0) return;
@@ -66,10 +48,7 @@ export async function apagarUsuarios(...usuarios) {
   await prisma.user.deleteMany({ where: { id: { in: ids } } });
 }
 
-/**
- * Atalho para o cenario mais comum: uma conta com um cliente e
- * um contrato prontos, que e o minimo para testar parcelas.
- */
+// conta + cliente + contrato
 export async function criarCenario({ amount = 1000, status = "ACTIVE" } = {}) {
   const usuario = await criarUsuario();
 

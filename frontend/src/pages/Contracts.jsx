@@ -1,10 +1,3 @@
-// ============================================================
-// Tela de contratos - o trabalho combinado com cada cliente
-// ------------------------------------------------------------
-// A pagina decide O QUE mostrar (busca, filtro, recorte por
-// cliente) e o que mandar para a API. O desenho da tabela mora
-// em components/contracts/ContractsTable.jsx.
-// ============================================================
 
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -74,8 +67,7 @@ export default function Contracts() {
   const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
 
-  // ?client=<id> recorta a lista em um cliente so. Quem chega
-  // pelo detalhe do cliente cai aqui ja filtrado.
+  // ?client=<id> filtra por cliente
   const [searchParams, setSearchParams] = useSearchParams();
   const clientFilter = searchParams.get("client");
 
@@ -86,10 +78,7 @@ export default function Contracts() {
   const [busy, setBusy] = useState(false);
 
   const [toDelete, setToDelete] = useState(null);
-  // Id do contrato aberto no painel de detalhe (null = fechado).
   const [detailId, setDetailId] = useState(null);
-  // Guarda o id da linha cujo status esta sendo trocado, para
-  // desabilitar so aquele menu e nao a tabela inteira.
   const [updatingId, setUpdatingId] = useState(null);
 
   function openCreate() {
@@ -118,8 +107,6 @@ export default function Contracts() {
     setFormError("");
     setBusy(true);
 
-    // dueDate vazio precisa virar null, nao string vazia -
-    // o backend espera uma data ou a ausencia dela.
     const payload = { ...form, dueDate: form.dueDate || null };
 
     try {
@@ -149,7 +136,6 @@ export default function Contracts() {
     }
   }
 
-  // Troca o status direto na tabela, sem abrir o formulario.
   async function quickStatus(contract, status) {
     if (status === contract.status) return;
 
@@ -177,9 +163,6 @@ export default function Contracts() {
     const term = search.trim().toLowerCase();
 
     return contracts.filter((c) => {
-      // Recorte vindo da URL (?client=), usado pelo detalhe do
-      // cliente. Fica na URL, e nao no estado, para o endereco
-      // poder ser copiado e recarregado sem perder o filtro.
       if (clientFilter && c.clientId !== clientFilter) return false;
       if (filter !== "ALL" && c.status !== filter) return false;
       if (!term) return true;
@@ -189,7 +172,6 @@ export default function Contracts() {
     });
   }, [contracts, filter, search, clientFilter]);
 
-  // Nome do cliente do recorte, para dizer na tela qual e.
   const filteredClientName = useMemo(
     () => clients.find((c) => c.id === clientFilter)?.name,
     [clients, clientFilter]
@@ -200,9 +182,7 @@ export default function Contracts() {
     [filtered]
   );
 
-  // Contagem por aba, para os numeros aparecerem no filtro. Ela
-  // segue o recorte por cliente, senao a aba diria "Pendente
-  // (12)" e a tabela mostraria 2.
+  // contagem respeita o filtro de cliente
   const counts = useMemo(
     () =>
       countByStatus(
@@ -239,9 +219,6 @@ export default function Contracts() {
         </Alert>
       )}
 
-      {/* Recorte por cliente sempre visivel e com saida a um
-          clique: filtro que o usuario nao ve e armadilha - ele
-          conclui que os outros contratos sumiram. */}
       {clientFilter && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
           <span className="min-w-0 truncate">
@@ -311,7 +288,7 @@ export default function Contracts() {
         </Card>
       )}
 
-      {/* ---------------- Formulario ---------------- */}
+      {/* Formulario */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
@@ -428,7 +405,7 @@ export default function Contracts() {
         </SheetContent>
       </Sheet>
 
-      {/* ---------------- Detalhe do contrato ---------------- */}
+      {/* Detalhe do contrato */}
       <ContractDetail
         contractId={detailId}
         onOpenChange={(open) => !open && setDetailId(null)}

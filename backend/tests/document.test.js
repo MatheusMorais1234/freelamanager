@@ -1,10 +1,3 @@
-// ============================================================
-// Digito verificador de CPF e CNPJ
-// ------------------------------------------------------------
-// Nao ha banco nem HTTP aqui: e funcao pura entrando e saindo.
-// Por isso este arquivo roda em milissegundos e e o primeiro a
-// acusar se a regra quebrar.
-// ============================================================
 
 import { describe, it, expect } from "vitest";
 
@@ -34,8 +27,7 @@ describe("isValidCPF", () => {
   });
 
   it("recusa um digito verificador trocado", () => {
-    // Mesmo CPF acima, so o ultimo digito alterado. E este o
-    // erro que so contar caracteres deixaria passar.
+    // so o ultimo digito trocado
     expect(isValidCPF("39053344706")).toBe(false);
   });
 

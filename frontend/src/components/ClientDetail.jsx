@@ -1,15 +1,4 @@
-// ============================================================
-// Detalhe de um cliente - a ficha completa e o que ele rende
-// ------------------------------------------------------------
-// A tabela de clientes mostra uma linha por cliente, com o
-// essencial. Aqui aparece o resto do cadastro (endereco,
-// documento, observacoes) e, principalmente, a resposta que a
-// lista nao da: quanto este cliente ja pagou, quanto ainda deve
-// e se tem alguma coisa atrasada.
-//
-// Tudo vem de GET /clients/:id, que ja traz os contratos e os
-// totais somados no banco - uma chamada, nao uma por contrato.
-// ============================================================
+// Ficha do cliente: cadastro + resumo financeiro (GET /clients/:id)
 
 import { useCallback } from "react";
 import { Link } from "react-router-dom";
@@ -50,7 +39,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet.jsx";
 
-/** Um dado solto: rotulo em cima, valor embaixo. */
 function Field({ label, children, className }) {
   return (
     <div className={className}>
@@ -62,7 +50,6 @@ function Field({ label, children, className }) {
   );
 }
 
-/** Linha de contato: icone, valor e (quando faz sentido) link. */
 function ContactLine({ icon: Icon, children, href }) {
   if (!children) return null;
 
@@ -73,13 +60,10 @@ function ContactLine({ icon: Icon, children, href }) {
     </span>
   );
 
-  // Sem href o dado ainda aparece - so nao vira link.
   return href ? (
     <a
       href={href}
       className="block hover:text-primary hover:underline"
-      // Link externo em aba nova: tirar o usuario do sistema no
-      // meio de uma consulta seria perder o contexto dele.
       target={href.startsWith("http") ? "_blank" : undefined}
       rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
     >
@@ -90,11 +74,7 @@ function ContactLine({ icon: Icon, children, href }) {
   );
 }
 
-/**
- * Os tres numeros que resumem a relacao financeira com o
- * cliente. "Atrasado" so aparece quando existe - um zero em
- * vermelho na tela chama atencao para nada.
- */
+// "Atrasado" so aparece se tiver valor
 function FinancialSummary({ summary }) {
   const recebido = Number(summary.paid);
   const aVencer = Number(summary.pending);
@@ -134,7 +114,6 @@ function FinancialSummary({ summary }) {
   );
 }
 
-/** Endereco montado em uma linha so, pulando o que estiver vazio. */
 function enderecoEmLinha(c) {
   const rua = [c.street, c.number].filter(Boolean).join(", ");
   const cidade = [c.city, c.state].filter(Boolean).join("/");
@@ -148,18 +127,11 @@ function enderecoEmLinha(c) {
 }
 
 export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
-  // Sem cliente escolhido o painel esta fechado - devolver null
-  // evita uma chamada a /clients/null.
   const buscar = useCallback(async () => {
     if (!clientId) return null;
     return api.get(`/clients/${clientId}`);
   }, [clientId]);
 
-  // Trocar de cliente refaz a busca, e o hook descarta a
-  // resposta do anterior se ela chegar atrasada - era assim que
-  // o painel mostrava a ficha do cliente errado. Fechar zera o
-  // conteudo pelo mesmo caminho: clientId vira null, a busca
-  // devolve null e o painel volta ao esqueleto.
   const { data, loading, error, reload } = useApiData(buscar, [clientId]);
 
   const client = data?.client ?? null;
@@ -198,7 +170,7 @@ export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
             <>
               {summary && <FinancialSummary summary={summary} />}
 
-              {/* ---------------- Identificacao ---------------- */}
+              {/* Identificacao */}
               <div className="grid grid-cols-2 gap-4">
                 <Field label={ehEmpresa ? "CNPJ" : "CPF"}>
                   <span className="tabular">
@@ -219,7 +191,7 @@ export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
                 )}
               </div>
 
-              {/* ---------------- Contato ---------------- */}
+              {/* Contato */}
               <Field label="Contato">
                 <div className="space-y-1.5">
                   <ContactLine icon={Mail} href={client.email && `mailto:${client.email}`}>
@@ -270,7 +242,7 @@ export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
 
               <Separator />
 
-              {/* ---------------- Contratos ---------------- */}
+              {/* Contratos */}
               <div>
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <h3 className="flex items-center gap-2 text-sm font-medium">
@@ -312,8 +284,6 @@ export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
                           <span className="tabular font-medium text-foreground">
                             {formatMoney(c.amount)}
                           </span>
-                          {/* O quanto ja entrou por contrato vem
-                              somado do backend, num groupBy so. */}
                           <span className="tabular">
                             recebido {formatMoney(c.paid)}
                           </span>
@@ -327,8 +297,7 @@ export default function ClientDetail({ clientId, onOpenChange, onEdit }) {
                 )}
               </div>
 
-              {/* Editar mora na tela de clientes; aqui so
-                  chamamos aquele mesmo formulario. */}
+              {/* editar fica na tela de clientes */}
               {onEdit && (
                 <>
                   <Separator />

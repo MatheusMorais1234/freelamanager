@@ -1,12 +1,3 @@
-// ============================================================
-// Clientes: cadastro, normalizacao e a ficha do cliente
-// ------------------------------------------------------------
-// Duas regras do README ganham teste aqui:
-//   - documento, telefone e CEP entram no banco SO COM DIGITOS
-//     (a mascara e coisa de tela);
-//   - o mesmo CPF nao se repete para um freelancer, mas dois
-//     freelancers podem atender o mesmo cliente.
-// ============================================================
 
 import { describe, it, expect, afterEach } from "vitest";
 
@@ -43,9 +34,6 @@ describe("POST /clients", () => {
   });
 
   it("grava documento, telefone e CEP so com digitos", async () => {
-    // Sem isso, "123.456.789-05" e "12345678905" virariam dois
-    // cadastros diferentes e a busca teria que adivinhar a
-    // pontuacao usada no dia do cadastro.
     const usuario = await novoUsuario();
 
     const res = await usuario.post("/clients", {
@@ -119,14 +107,10 @@ describe("unicidade do documento", () => {
     });
 
     expect(repetido.status).toBe(409);
-    // A mensagem aponta o campo, para o formulario marcar onde.
     expect(repetido.body.fields?.document).toBeTruthy();
   });
 
   it("mas dois freelancers podem ter o mesmo cliente", async () => {
-    // A unicidade e composta (userId + documento). Se fosse so
-    // pelo documento, o cadastro de um usuario impediria o do
-    // outro - e clientes sao compartilhados no mundo real.
     const primeiro = await novoUsuario();
     const segundo = await novoUsuario();
 
@@ -170,7 +154,6 @@ describe("GET /clients/:id - a ficha do cliente", () => {
     const { usuario, cliente, contrato } = await criarCenario({ amount: 1000 });
     usados.push(usuario);
 
-    // Duas parcelas: uma ja recebida, outra vencida em aberto.
     await usuario.post("/payments", {
       contractId: contrato.id,
       amount: 400,
@@ -188,7 +171,6 @@ describe("GET /clients/:id - a ficha do cliente", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.client.contracts).toHaveLength(1);
-    // Quanto ja entrou naquele contrato, somado no banco.
     expect(Number(res.body.client.contracts[0].paid)).toBe(400);
 
     expect(Number(res.body.summary.paid)).toBe(400);

@@ -1,18 +1,8 @@
-// ============================================================
-// Parcelas: divisao do valor, vencimentos e baixa
-// ------------------------------------------------------------
-// Aqui moram as duas contas que o README promete acertar:
-//   1. parcelar sem perder centavo;
-//   2. vencimento mensal que respeita o fim do mes.
-// Ambas sao daquelas que "funcionam" nos numeros redondos do
-// teste manual e quebram justamente no caso torto.
-// ============================================================
 
 import { describe, it, expect, afterEach } from "vitest";
 
 import { criarCenario, apagarUsuarios, prisma } from "./helpers.js";
 
-// Cada teste cria o proprio cenario; guardamos para limpar.
 const usados = [];
 
 async function cenario(opcoes) {
@@ -25,7 +15,6 @@ afterEach(async () => {
   await apagarUsuarios(...usados.splice(0));
 });
 
-/** Soma os valores das parcelas com precisao de centavo. */
 function somaEmCentavos(parcelas) {
   return parcelas.reduce((total, p) => total + Math.round(Number(p.amount) * 100), 0);
 }
@@ -47,9 +36,7 @@ describe("divisao do valor em parcelas", () => {
   });
 
   it("nao perde centavo quando a divisao nao e exata", async () => {
-    // 10.000,01 em 3x. Dividir em ponto flutuante daria
-    // 3.333,336... e arredondar cada parcela faria a soma
-    // fechar em 10.000,02 ou 10.000,00 - nunca no total.
+    // 10.000,01 em 3x
     const { usuario, contrato } = await cenario({ amount: 10000.01 });
 
     const res = await usuario.post("/payments", {
@@ -62,13 +49,11 @@ describe("divisao do valor em parcelas", () => {
     const valores = res.body.payments.map((p) => Number(p.amount));
 
     expect(valores).toEqual([3333.35, 3333.33, 3333.33]);
-    // A prova que importa: a soma bate com o total, ao centavo.
     expect(somaEmCentavos(res.body.payments)).toBe(1000001);
   });
 
   it("joga a sobra na primeira parcela, nao na ultima", async () => {
-    // A sobra na primeira e proposital: o freelancer recebe o
-    // centavo a mais na entrada, e nao meses depois.
+    // centavo extra vai na primeira
     const { usuario, contrato } = await cenario({ amount: 100 });
 
     const res = await usuario.post("/payments", {
@@ -138,8 +123,7 @@ describe("vencimentos mensais", () => {
   });
 
   it("dia 31 cai no ultimo dia do mes curto e volta depois", async () => {
-    // Somar 30 dias faria a data escorregar todo mes: 31/01
-    // viraria 02/03, depois 01/04... Aqui ela volta para 31.
+    // 31/01 -> 28/02 -> 31/03, nao 02/03
     const { usuario, contrato } = await cenario();
 
     const res = await usuario.post("/payments", {
@@ -154,7 +138,7 @@ describe("vencimentos mensais", () => {
   });
 
   it("respeita o 29 de fevereiro de ano bissexto", async () => {
-    // 2028 e bissexto: 31/01/2028 + 1 mes = 29/02, nao 28/02.
+    // 2028 e bissexto
     const { usuario, contrato } = await cenario();
 
     const res = await usuario.post("/payments", {
@@ -227,8 +211,6 @@ describe("status derivado da data", () => {
   });
 
   it("parcela vencida e sem pagamento fica OVERDUE", async () => {
-    // O status nao esta gravado em coluna nenhuma: ele nasce da
-    // comparacao do vencimento com hoje, a cada leitura.
     const { usuario, contrato } = await cenario();
 
     const res = await usuario.post("/payments", {
@@ -278,9 +260,6 @@ describe("baixa do recebimento", () => {
     const desfeita = await usuario.patch(`/payments/${id}/settle`, { paid: false });
 
     expect(desfeita.body.payment.status).toBe("PENDING");
-    // Desfazer limpa a data: sem isso sobraria "pago" sem
-    // pagamento, exatamente a inconsistencia que o status
-    // derivado existe para evitar.
     expect(desfeita.body.payment.paidAt).toBeNull();
   });
 

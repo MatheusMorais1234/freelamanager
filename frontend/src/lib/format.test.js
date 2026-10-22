@@ -1,10 +1,3 @@
-// ============================================================
-// Formatacao e mascaras
-// ------------------------------------------------------------
-// Estas funcoes ficam entre o banco (que guarda so digitos) e a
-// tela (que mostra pontuacao). Um erro aqui nao derruba nada -
-// so mostra o numero errado para o usuario, que e pior.
-// ============================================================
 
 import { describe, it, expect } from "vitest";
 
@@ -26,11 +19,7 @@ import {
   initials,
 } from "./format.js";
 
-/**
- * O formato de moeda do pt-BR usa espaco NAO separavel entre o
- * "R$" e o numero. Comparar com um espaco comum falharia por um
- * caractere invisivel - entao normalizamos antes de comparar.
- */
+// pt-BR usa espaco nao separavel depois do R$
 function semEspacoEstranho(texto) {
   return texto.replace(/ /g, " ");
 }
@@ -49,8 +38,6 @@ describe("onlyDigits", () => {
 
 describe("formatMoney", () => {
   it("formata o valor que vem como string do backend", () => {
-    // O backend manda "4500.75" (string) para nao perder
-    // centavo; a conversao para numero acontece so aqui.
     expect(semEspacoEstranho(formatMoney("4500.75"))).toBe("R$ 4.500,75");
   });
 
@@ -86,8 +73,6 @@ describe("formatDate", () => {
   });
 
   it("nao escorrega um dia por causa do fuso", () => {
-    // Sem timeZone UTC, um navegador em fuso negativo (o Brasil
-    // inteiro) mostraria 31/12 para uma data de 01/01.
     expect(formatDate("2026-01-01")).toBe("01/01/2026");
     expect(formatDate("2026-12-31")).toBe("31/12/2026");
   });
@@ -109,11 +94,7 @@ describe("toInputDate", () => {
 });
 
 describe("daysUntil", () => {
-  // A funcao compara com a meia-noite de hoje, e as datas que
-  // ela recebe na vida real vem da API como "AAAA-MM-DD" (sem
-  // hora). Os testes usam o mesmo formato: passar um Date com
-  // hora embutida faria o resultado variar conforme a hora em
-  // que a suite roda.
+  // datas no formato da API (sem hora) pra nao depender da hora que roda
   function emDias(offset) {
     const d = new Date();
     d.setHours(12, 0, 0, 0);
@@ -130,10 +111,7 @@ describe("daysUntil", () => {
   });
 
   it("devolve zero no dia do vencimento", () => {
-    // toBeCloseTo, e nao toBe: o arredondamento pode produzir
-    // "-0", que e diferente de "+0" para o Object.is do toBe,
-    // mas se comporta como zero em toda comparacao do app
-    // ("-0 === 0" e verdadeiro, "-0 < 0" e falso).
+    // toBeCloseTo por causa do -0
     expect(daysUntil(emDias(0))).toBeCloseTo(0);
   });
 
@@ -152,8 +130,6 @@ describe("mascara de documento", () => {
   });
 
   it("formata enquanto o usuario ainda esta digitando", () => {
-    // A mascara nao pode esperar o campo estar completo: ela
-    // acompanha a digitacao.
     expect(formatCPF("390")).toBe("390");
     expect(formatCPF("3905")).toBe("390.5");
     expect(formatCPF("390533")).toBe("390.533");
@@ -205,9 +181,6 @@ describe("paidPercent", () => {
   });
 
   it("trata contrato de valor zero como quitado, e nao como NaN", () => {
-    // Contrato de valor zero existe (cortesia, permuta). Sem a
-    // guarda, 0/0 viraria NaN e a barra de progresso sumiria da
-    // tela. A escolha e 100%: nao ha nada a receber.
     expect(paidPercent(0, 0)).toBe(100);
     expect(paidPercent(0, null)).toBe(100);
   });
@@ -217,8 +190,6 @@ describe("paidPercent", () => {
   });
 
   it("nao passa de 100 quando se recebe acima do combinado", () => {
-    // Aditivo e hora extra sao legitimos, mas a barra nao pode
-    // vazar para fora do cartao.
     expect(paidPercent(1500, 1000)).toBe(100);
   });
 });
@@ -229,7 +200,6 @@ describe("initials", () => {
   });
 
   it("usa as duas primeiras letras quando ha so um nome", () => {
-    // Uma letra sozinha deixaria o avatar com cara de vazio.
     expect(initials("Matheus")).toBe("MA");
   });
 

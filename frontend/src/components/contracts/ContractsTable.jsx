@@ -1,16 +1,4 @@
-// ============================================================
-// Tabela de contratos
-// ------------------------------------------------------------
-// A lista em si: titulo (que abre o detalhe), cliente, valor com
-// a barra do quanto ja foi recebido, prazo, o selo de status que
-// tambem TROCA o status, e o menu de acoes.
-//
-// Saiu de dentro de pages/Contracts.jsx porque a pagina tinha
-// virado 667 linhas em que a marcacao da tabela escondia a
-// logica de carregamento e filtro. Aqui o componente e burro de
-// proposito: recebe a lista pronta e devolve os cliques por
-// callback - quem decide o que fazer continua sendo a pagina.
-// ============================================================
+// Tabela de contratos. So renderiza, a logica fica em pages/Contracts.jsx.
 
 import { Loader2, MoreHorizontal } from "lucide-react";
 
@@ -47,11 +35,6 @@ import {
   TableRow,
 } from "@/components/ui/table.jsx";
 
-/**
- * Quanto do contrato ja foi recebido, em barra e em texto.
- * O numero vem pronto do backend (campo paidAmount), somado a
- * partir das parcelas com data de recebimento.
- */
 function PaidProgress({ paid, total }) {
   const value = Number(paid ?? 0);
   if (value <= 0) return null;
@@ -61,9 +44,6 @@ function PaidProgress({ paid, total }) {
 
   return (
     <div className="mt-1 flex items-center justify-end gap-2">
-      {/* aria-hidden aqui e escolha, nao esquecimento: o texto ao
-          lado ja diz a mesma coisa em palavras, e o ProgressBar
-          sozinho anunciaria o percentual duas vezes. */}
       <span aria-hidden="true">
         <ProgressBar
           value={percent}
@@ -84,14 +64,6 @@ function PaidProgress({ paid, total }) {
   );
 }
 
-/**
- * @param {Array}    contracts    ja filtrados pela pagina
- * @param {string}   updatingId   linha com troca de status em andamento
- * @param {Function} onOpenDetail (contrato) => void
- * @param {Function} onQuickStatus (contrato, status) => void
- * @param {Function} onEdit       (contrato) => void
- * @param {Function} onDelete     (contrato) => void
- */
 export function ContractsTable({
   contracts = [],
   updatingId,
@@ -101,9 +73,7 @@ export function ContractsTable({
   onDelete,
 }) {
   return (
-    // Sem <div overflow-x-auto> por fora: ui/table.jsx ja embrulha
-    // a tabela em um container com rolagem horizontal, e o segundo
-    // so criava uma barra dentro da outra.
+    // ui/table ja tem overflow-x
     <Table>
       <TableHeader>
         <TableRow>
@@ -119,11 +89,6 @@ export function ContractsTable({
         {contracts.map((c) => (
           <TableRow key={c.id}>
             <TableCell className="max-w-xs">
-              {/* Clicar no titulo abre o detalhe: e o gesto que a
-                  pessoa ja tenta antes de procurar o menu de tres
-                  pontinhos. Os tokens de foco sao os mesmos do
-                  ui/button.jsx - o botao tinha so hover, entao por
-                  teclado nao dava para ver onde se estava. */}
               <button
                 type="button"
                 onClick={() => onOpenDetail?.(c)}
@@ -148,10 +113,6 @@ export function ContractsTable({
 
             <TableCell>
               <p className="tabular text-muted-foreground">{formatDate(c.dueDate)}</p>
-              {/* Quando o aviso nao cabe e decisao DESTA tela:
-                  contrato concluido ou cancelado nao tem prazo que
-                  importe, e prazo a mais de uma semana ainda nao e
-                  assunto. */}
               <DueHint
                 dueDate={c.dueDate}
                 hide={
@@ -163,11 +124,7 @@ export function ContractsTable({
             </TableCell>
 
             <TableCell>
-              {/* Menu de status: troca rapida sem abrir o
-                  formulario inteiro. O gatilho e um Button de
-                  verdade (asChild) para herdar o anel de foco e
-                  poder carregar um aria-label - antes era um
-                  <button> cru, mudo e invisivel ao teclado. */}
+              {/* troca rapida de status */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -178,9 +135,7 @@ export function ContractsTable({
                     className="px-1 disabled:opacity-60"
                   >
                     {updatingId === c.id ? (
-                      // Casca do selo repetida a mao: o StatusBadge
-                      // ainda nao tem um estado "salvando". Se ele
-                      // ganhar um, este bloco sai daqui.
+                      // TODO: StatusBadge com estado "salvando"
                       <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs">
                         <Loader2 className="size-3 animate-spin" />
                         Salvando

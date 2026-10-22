@@ -57,9 +57,6 @@ import {
 export default function Dashboard() {
   const { user } = useAuth();
 
-  // useCallback para a funcao nao ser recriada a cada render.
-  // Promise.all dispara as quatro chamadas EM PARALELO - uma
-  // depois da outra levaria o quadruplo do tempo.
   const buscar = useCallback(
     () =>
       Promise.all([
@@ -76,9 +73,6 @@ export default function Dashboard() {
     []
   );
 
-  // O hook cuida do loading, do erro e de descartar resposta
-  // atrasada. Sem o erro tratado, uma API fora do ar deixaria
-  // "stats" em null e a tela quebraria ao ler stats.byStatus.
   const { data, loading, error, reload } = useApiData(buscar);
 
   const stats = data?.stats ?? null;
@@ -86,8 +80,6 @@ export default function Dashboard() {
   const summary = data?.summary ?? null;
   const payments = data?.payments ?? LISTA_VAZIA;
 
-  // useMemo: estes calculos so refazem quando os dados mudam,
-  // nao a cada re-render provocado por outra coisa.
   const donutData = useMemo(() => {
     if (!stats) return [];
     return STATUS_LIST.map((s) => ({
@@ -98,15 +90,11 @@ export default function Dashboard() {
     })).filter((d) => d.count > 0);
   }, [stats]);
 
-  // Faturamento dos ultimos 6 meses. A soma vem PRONTA do
-  // backend (/payments/summary), agrupada pela data em que cada
-  // parcela foi recebida - dinheiro que entrou de verdade, e nao
-  // contrato marcado como concluido.
+  // recebido por mes (pela data de pagamento)
   const monthlyData = useMemo(() => {
     if (!summary) return [];
 
     return summary.monthly.map((m) => {
-      // "2026-08" -> objeto Date -> "ago"
       const [year, month] = m.key.split("-").map(Number);
       const d = new Date(year, month - 1, 1);
 
@@ -118,16 +106,12 @@ export default function Dashboard() {
     });
   }, [summary]);
 
-  // As proximas parcelas a receber, atrasadas primeiro. A lista
-  // ja vem do backend ordenada por vencimento; aqui so tiramos
-  // as recebidas e cortamos nas cinco primeiras.
   const upcomingPayments = useMemo(
     () => payments.filter((p) => p.status !== "PAID").slice(0, 5),
     [payments]
   );
 
-  // Prazos que vencem nos proximos 30 dias ou ja venceram,
-  // ignorando o que ja foi concluido ou cancelado.
+  // vencendo em 30 dias ou atrasados, sem concluidos/cancelados
   const upcoming = useMemo(() => {
     return contracts
       .filter((c) => c.dueDate && (c.status === "PENDING" || c.status === "ACTIVE"))
@@ -159,9 +143,6 @@ export default function Dashboard() {
     );
   }
 
-  // Dinheiro agora vem dos PAGAMENTOS, nao do status do
-  // contrato: um contrato "em andamento" pode ja ter metade
-  // paga, e um "concluido" pode nao ter recebido nada ainda.
   const recebido = Number(summary.paid.total);
   const aReceber = Number(summary.pending.total) + Number(summary.overdue.total);
   const atrasado = Number(summary.overdue.total);
@@ -202,9 +183,6 @@ export default function Dashboard() {
         />
       </section>
 
-      {/* Atraso e a unica coisa do painel que pede acao imediata,
-          entao ganha destaque proprio em vez de virar mais um
-          numero no meio dos outros. */}
       {atrasado > 0 && (
         <Alert variant="destructive" className="mt-4">
           <AlertCircle className="size-4" />
@@ -221,7 +199,7 @@ export default function Dashboard() {
       )}
 
       <section className="mt-4 grid gap-4 lg:grid-cols-5">
-        {/* ---------- Rosca por status ---------- */}
+        {/* Rosca por status */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Contratos por status</CardTitle>
@@ -279,7 +257,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* ---------- Faturamento mensal ---------- */}
+        {/* Faturamento mensal */}
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-base">Faturamento</CardTitle>
@@ -293,10 +271,7 @@ export default function Dashboard() {
         </Card>
       </section>
 
-      {/* ---------- O que precisa de atencao ---------- */}
-      {/* Duas listas lado a lado, porque sao coisas diferentes:
-          uma cobra ENTREGA (prazo do contrato), a outra cobra
-          DINHEIRO (vencimento da parcela). */}
+      {/* O que precisa de atencao */}
       <section className="mt-4 grid gap-4 lg:grid-cols-2">
       {upcoming.length > 0 && (
         <Card>
@@ -321,8 +296,6 @@ export default function Dashboard() {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="tabular text-sm">{formatDate(c.dueDate)}</p>
-                  {/* mute: no painel, "no prazo" e so contexto -
-                      quem precisa saltar aos olhos e o atraso. */}
                   <DueHint dueDate={c.dueDate} mute />
                 </div>
               </div>
@@ -377,7 +350,7 @@ export default function Dashboard() {
       )}
       </section>
 
-      {/* ---------- Contratos recentes ---------- */}
+      {/* Contratos recentes */}
       <Card className="mt-4 overflow-hidden">
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Contratos recentes</CardTitle>

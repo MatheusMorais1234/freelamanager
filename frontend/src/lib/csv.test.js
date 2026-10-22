@@ -1,10 +1,3 @@
-// ============================================================
-// Montagem do CSV
-// ------------------------------------------------------------
-// Exportacao e daquelas funcoes que "funcionam" no teste manual
-// com nomes simples e quebram no primeiro cliente chamado
-// "Silva & Cia; Ltda". Os casos tortos estao todos aqui.
-// ============================================================
 
 import { describe, it, expect } from "vitest";
 
@@ -21,8 +14,6 @@ describe("paraCSV", () => {
   });
 
   it("usa ponto e virgula, e nao virgula", () => {
-    // O Excel em portugues le a virgula como separador DECIMAL.
-    // Com ",", o valor "1.234,56" viraria duas colunas.
     const csv = paraCSV([{ a: "1", b: "2" }]);
 
     expect(csv.split("\r\n")[0]).toBe("a;b");
@@ -36,8 +27,6 @@ describe("paraCSV", () => {
   });
 
   it("protege o campo que contem o separador", () => {
-    // Sem aspas, este nome empurraria a planilha inteira uma
-    // coluna para o lado a partir dali.
     const csv = paraCSV([{ Cliente: "Silva; Souza e Cia", Total: "10" }]);
 
     expect(csv).toBe('Cliente;Total\r\n"Silva; Souza e Cia";10');
@@ -62,8 +51,7 @@ describe("paraCSV", () => {
   });
 
   it("mantem o zero, que nao e ausencia", () => {
-    // Um `if (!valor)` ingenuo apagaria o zero - e zero recebido
-    // e informacao, nao falta de informacao.
+    // zero tem que aparecer
     const csv = paraCSV([{ Recebido: 0 }]);
 
     expect(csv).toBe("Recebido\r\n0");

@@ -1,6 +1,4 @@
-# ============================================================
 # Integracao continua
-# ------------------------------------------------------------
 # Roda a cada push e a cada pull request: sobe um Postgres
 # descartavel, aplica as migracoes, roda os 95 testes do backend
 # e compila o frontend.
@@ -9,7 +7,6 @@
 # escreveu nao protege ninguem. Aqui ele roda em uma maquina
 # limpa, a partir do que esta no repositorio - o que tambem
 # prova que o projeto sobe do zero seguindo o README.
-# ============================================================
 
 name: CI
 

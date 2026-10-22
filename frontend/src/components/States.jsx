@@ -1,10 +1,4 @@
-// ============================================================
-// Estados que nao sao "deu tudo certo"
-// ------------------------------------------------------------
-// Carregando, vazio e erro sao parte da interface, nao um
-// detalhe. Centralizar aqui garante que as tres telas tratem
-// esses momentos do mesmo jeito.
-// ============================================================
+// Loading, vazio e erro
 
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 
@@ -13,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card.jsx";
 import { Skeleton } from "@/components/ui/skeleton.jsx";
 import { cn } from "@/lib/utils.js";
 
-/** Cabecalho padrao das paginas: titulo, apoio e acao a direita. */
 export function PageHeader({ title, description, children }) {
   return (
     <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -28,11 +21,7 @@ export function PageHeader({ title, description, children }) {
   );
 }
 
-/**
- * Falha ao carregar. Sempre com um botao de tentar de novo:
- * a maioria dos erros de rede passa na segunda tentativa, e
- * obrigar o usuario a recarregar a pagina inteira e rude.
- */
+// Erro com botao de tentar de novo
 export function ErrorState({ message, onRetry }) {
   return (
     <Card className="border-destructive/40">
@@ -57,7 +46,6 @@ export function ErrorState({ message, onRetry }) {
   );
 }
 
-/** Lista sem nenhum item ainda (ou nenhum resultado de busca). */
 export function EmptyState({ icon: Icon = Inbox, title, description, children }) {
   return (
     <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
@@ -75,22 +63,10 @@ export function EmptyState({ icon: Icon = Inbox, title, description, children })
   );
 }
 
-/**
- * Esqueleto da tabela enquanto os dados chegam. Mostrar a forma
- * do conteudo faz a espera parecer mais curta do que uma
- * palavra "Carregando..." sozinha no meio da tela.
- *
- * As medidas seguem ui/table.jsx (celula com p-2, cabecalho com
- * h-10) de proposito: a versao anterior usava px-4 py-4 e ficava
- * bem mais alta que a tabela real, entao a tela SALTAVA no
- * instante em que os dados chegavam. Esqueleto que nao tem o
- * tamanho do conteudo troca um problema por outro.
- */
+// Skeleton da tabela, com as mesmas medidas do ui/table pra nao pular
 export function TableSkeleton({ rows = 5, cols = 5 }) {
   return (
     <div className="divide-y">
-      {/* Linha de cabecalho falsa: a tabela real tem uma, e sem
-          ela o esqueleto ficava uma linha mais curto. */}
       <div className="flex h-10 items-center gap-4 px-2">
         {Array.from({ length: cols }).map((_, c) => (
           <Skeleton key={c} className={cn("h-3", c === 0 ? "w-2/5" : "flex-1")} />
@@ -111,12 +87,6 @@ export function TableSkeleton({ rows = 5, cols = 5 }) {
   );
 }
 
-/**
- * Esqueleto dos cartoes de indicador. A grade vem por prop
- * porque nem toda secao tem quatro cartoes: com a grade fixa em
- * "sm:grid-cols-2 xl:grid-cols-4", uma secao de tres cartoes
- * carregava em quatro colunas e reorganizava tudo ao terminar.
- */
 export function CardsSkeleton({ count = 4, className }) {
   return (
     <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-4", className)}>
@@ -132,12 +102,6 @@ export function CardsSkeleton({ count = 4, className }) {
   );
 }
 
-/**
- * Esqueleto dos paineis de detalhe (cliente e contrato): um
- * bloco de resumo no topo, um titulo e dois cartoes. Estava
- * duplicado nos dois arquivos de detalhe, com alturas
- * ligeiramente diferentes sem motivo.
- */
 export function DetailSkeleton({ className }) {
   return (
     <div className={cn("space-y-3", className)}>
@@ -149,13 +113,6 @@ export function DetailSkeleton({ className }) {
   );
 }
 
-/**
- * Rotulo curto acima de um valor. A mesma sequencia de classes
- * ("text-xs font-medium tracking-wide ... uppercase") estava
- * copiada em nove lugares - e classe copiada e classe que
- * diverge: bastava uma tela ganhar um "tracking-wider" para os
- * rotulos deixarem de combinar.
- */
 export function FieldLabel({ children, className, as: Tag = "p" }) {
   return (
     <Tag

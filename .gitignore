@@ -1,32 +1,29 @@
-# ============================================================
 # FreelaManager - arquivos que o Git deve ignorar
-# ============================================================
 # Regra geral: nunca versionar o que pode ser GERADO
 # nem o que e SEGREDO.
-# ============================================================
 
-# --- Dependencias (reconstruidas com "npm install") ---
+# Dependencias (reconstruidas com "npm install")
 node_modules/
 .pnp
 .pnp.js
 
-# --- Segredos: NUNCA subir ---
+# Segredos: NUNCA subir
 .env
 .env.local
 .env.*.local
 # excecao: o modelo sem valores reais DEVE subir
 !.env.example
 
-# --- Saida de build (gerada a partir do codigo-fonte) ---
+# Saida de build (gerada a partir do codigo-fonte)
 dist/
 build/
 out/
 .vite/
 
-# --- Codigo gerado pelo Prisma (refeito com "prisma generate") ---
+# Codigo gerado pelo Prisma (refeito com "prisma generate")
 backend/src/generated/
 
-# --- Logs ---
+# Logs
 logs/
 *.log
 npm-debug.log*
@@ -34,26 +31,26 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# --- Cache de ferramentas ---
+# Cache de ferramentas
 .cache/
 .temp/
 coverage/
 .eslintcache
 
-# --- Arquivos de sistema operacional ---
+# Arquivos de sistema operacional
 # Windows
 Thumbs.db
 Desktop.ini
 # macOS (caso alguem clone num Mac)
 .DS_Store
 
-# --- Configuracao pessoal de editor / ferramentas ---
+# Configuracao pessoal de editor / ferramentas
 .vscode/*
 !.vscode/extensions.json
 .idea/
 *.swp
 
-# --- Assistentes de IA (configuracao local, nao e do projeto) ---
+# Assistentes de IA (configuracao local, nao e do projeto)
 .claude/
 .windsurf/
 .agents/

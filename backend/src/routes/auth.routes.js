@@ -1,9 +1,4 @@
-// ============================================================
-// Rotas de autenticacao
-//   POST /auth/register  - cria conta
-//   POST /auth/login     - troca email+senha por um token
-//   GET  /auth/me        - devolve o usuario logado
-// ============================================================
+// Auth: register, login, me
 
 import { Router } from "express";
 import bcrypt from "bcrypt";
@@ -16,8 +11,6 @@ import { authenticate } from "../middlewares/auth.js";
 
 const router = Router();
 
-// Custo do bcrypt: 2^10 rodadas. Quanto maior, mais lento de
-// quebrar (e de calcular). 10-12 e o padrao recomendado.
 const SALT_ROUNDS = 10;
 
 const registerSchema = z.object({
@@ -31,18 +24,14 @@ const loginSchema = z.object({
   password: z.string().min(1, "Informe a senha"),
 });
 
-// Gera o "cracha" assinado. Dentro dele vai SO o id do usuario -
-// nunca senha, nunca dado sensivel (o conteudo e legivel por
-// qualquer um; o que o JWT garante e que nao foi ALTERADO).
+// so o id vai no token
 function generateToken(userId) {
   return jwt.sign({ sub: userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 }
 
-// ------------------------------------------------------------
 // POST /auth/register
-// ------------------------------------------------------------
 router.post("/register", validate(registerSchema), async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -52,13 +41,11 @@ router.post("/register", validate(registerSchema), async (req, res, next) => {
       return res.status(409).json({ error: "Este e-mail ja esta cadastrado" });
     }
 
-    // A senha em texto puro NUNCA e gravada. So o hash.
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     const user = await prisma.user.create({
       data: { name, email, passwordHash },
-      // select explicito: garante que passwordHash JAMAIS
-      // sai numa resposta HTTP por descuido.
+      // nunca devolver o passwordHash
       select: { id: true, name: true, email: true, createdAt: true },
     });
 
@@ -68,26 +55,19 @@ router.post("/register", validate(registerSchema), async (req, res, next) => {
   }
 });
 
-// ------------------------------------------------------------
 // POST /auth/login
-// ------------------------------------------------------------
 router.post("/login", validate(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
     const user = await prisma.user.findUnique({ where: { email } });
 
-    // Compara a senha digitada com o hash guardado.
-    // Se o usuario nao existe, ainda assim rodamos um compare
-    // falso para o tempo de resposta nao denunciar quais
-    // e-mails existem no banco (timing attack).
+    // compara mesmo sem usuario pra nao vazar por tempo de resposta quais e-mails existem
     const ok = user
       ? await bcrypt.compare(password, user.passwordHash)
       : await bcrypt.compare(password, "$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid");
 
     if (!user || !ok) {
-      // Mensagem generica de proposito: nao revela se o erro
-      // foi no e-mail ou na senha.
       return res.status(401).json({ error: "E-mail ou senha incorretos" });
     }
 
@@ -105,9 +85,7 @@ router.post("/login", validate(loginSchema), async (req, res, next) => {
   }
 });
 
-// ------------------------------------------------------------
-// GET /auth/me  (protegida)
-// ------------------------------------------------------------
+// GET /auth/me
 router.get("/me", authenticate, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({

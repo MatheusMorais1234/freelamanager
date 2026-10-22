@@ -1,19 +1,4 @@
-// ============================================================
-// Botoes de entrada com Google / Facebook - DEMONSTRACAO
-// ------------------------------------------------------------
-// IMPORTANTE: nao ha OAuth por tras destes botoes. Eles existem
-// para mostrar como a tela ficaria com login social e estao
-// DESABILITADOS e marcados como "em breve" de proposito.
-//
-// Um botao que parece funcionar mas nao funciona e pior do que
-// nao ter botao: o usuario tenta, nao entende o que aconteceu e
-// desconfia do sistema. Pior ainda seria um que abrisse um
-// formulario pedindo a senha do Google - isso e exatamente a
-// aparencia de uma pagina de phishing.
-//
-// Quando o OAuth de verdade for implementado, basta remover o
-// "disabled" e ligar o onClick ao fluxo de redirecionamento.
-// ============================================================
+// Login social ainda nao implementado. Botoes ficam desabilitados ("em breve").
 
 import { Button } from "@/components/ui/button.jsx";
 import { Separator } from "@/components/ui/separator.jsx";
@@ -61,8 +46,6 @@ export default function SocialAuth() {
           variant="outline"
           disabled
           className="gap-2"
-          // O title aparece ao passar o mouse e explica o porque
-          // de o botao estar apagado.
           title="Login social ainda não disponível"
         >
           <GoogleIcon />

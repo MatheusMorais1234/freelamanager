@@ -67,7 +67,6 @@ export default function Clients() {
 
   const [toDelete, setToDelete] = useState(null);
 
-  // Qual cliente esta aberto no painel de detalhe (null = nenhum).
   const [detailId, setDetailId] = useState(null);
 
   function openCreate() {
@@ -79,8 +78,6 @@ export default function Clients() {
 
   function openEdit(client) {
     setEditing(client);
-    // O banco guarda null e so digitos; o formulario precisa de
-    // string e da mascara aplicada.
     setForm({
       type: client.type || "PERSON",
       name: client.name || "",
@@ -112,7 +109,6 @@ export default function Clients() {
     setFormError("");
     setBusy(true);
 
-    // Tira as mascaras antes de enviar: o backend grava so digitos.
     const payload = {
       ...form,
       document: onlyDigits(form.document),
@@ -149,10 +145,7 @@ export default function Clients() {
     }
   }
 
-  // Filtro roda no navegador: a lista e pequena, nao vale
-  // uma ida ao servidor a cada tecla digitada. A busca tambem
-  // olha o documento sem mascara, para "12345678900" achar
-  // quem foi cadastrado como "123.456.789-00".
+  // filtra no front mesmo; busca no documento sem mascara tambem
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return clients;
@@ -242,10 +235,6 @@ export default function Clients() {
                   {filtered.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell>
-                        {/* O nome e um botao, nao a linha inteira:
-                            clique em qualquer lugar da linha
-                            atrapalharia selecionar o texto do
-                            e-mail ou do documento. */}
                         <button
                           type="button"
                           onClick={() => setDetailId(c.id)}
@@ -336,20 +325,17 @@ export default function Clients() {
         </Card>
       )}
 
-      {/* ---------------- Detalhe ---------------- */}
+      {/* Detalhe */}
       <ClientDetail
         clientId={detailId}
         onOpenChange={(open) => !open && setDetailId(null)}
-        // "Editar cadastro" fecha o detalhe e abre o MESMO
-        // formulario da tela, em vez de manter dois formularios
-        // de cliente para dar manutencao.
         onEdit={(client) => {
           setDetailId(null);
           openEdit(client);
         }}
       />
 
-      {/* ---------------- Formulario ---------------- */}
+      {/* Formulario */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
           <SheetHeader>
@@ -372,10 +358,7 @@ export default function Clients() {
         </SheetContent>
       </Sheet>
 
-      {/* ---------------- Confirmacao de exclusao ---------------- */}
-      {/* ConfirmDialog usa AlertDialog (e nao Dialog) porque a
-          acao e destrutiva: ele prende o foco e exige uma
-          escolha explicita. */}
+      {/* Confirmacao de exclusao */}
       <ConfirmDialog
         open={!!toDelete}
         onOpenChange={(o) => !o && setToDelete(null)}

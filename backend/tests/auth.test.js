@@ -1,16 +1,8 @@
-// ============================================================
-// Cadastro, login e sessao
-// ------------------------------------------------------------
-// Alem do caminho feliz, este arquivo cobra as decisoes de
-// seguranca que o README promete: a senha nunca sai do backend
-// e o login nao revela quais e-mails existem.
-// ============================================================
 
 import { describe, it, expect, afterAll } from "vitest";
 
 import { app, request, criarUsuario, emailUnico, apagarUsuarios, prisma } from "./helpers.js";
 
-// Contas criadas ao longo do arquivo, apagadas no final.
 const criadas = [];
 
 afterAll(async () => {
@@ -40,7 +32,6 @@ describe("POST /auth/register", () => {
 
     criadas.push({ id: res.body.user.id });
 
-    // Nem com o nome do campo do banco, nem com o do JSON.
     expect(res.body.user).not.toHaveProperty("passwordHash");
     expect(res.body.user).not.toHaveProperty("password_hash");
     expect(JSON.stringify(res.body)).not.toContain("$2");
@@ -62,7 +53,6 @@ describe("POST /auth/register", () => {
     });
 
     expect(noBanco.passwordHash).not.toBe(senha);
-    // Prefixo do bcrypt - prova que passou pelo algoritmo.
     expect(noBanco.passwordHash.startsWith("$2")).toBe(true);
   });
 
@@ -116,8 +106,7 @@ describe("POST /auth/login", () => {
   });
 
   it("responde igual para senha errada e para e-mail que nao existe", async () => {
-    // Se as respostas fossem diferentes, daria para descobrir
-    // quais e-mails estao cadastrados so testando um por um.
+    // mesma resposta pra e-mail inexistente e senha errada
     const usuario = await criarUsuario();
     criadas.push(usuario);
 
@@ -155,7 +144,6 @@ describe("GET /auth/me", () => {
     const usuario = await criarUsuario();
     criadas.push(usuario);
 
-    // Troca o ultimo caractere: a assinatura deixa de bater.
     const adulterado = usuario.token.slice(0, -1) + (usuario.token.endsWith("a") ? "b" : "a");
 
     const res = await request(app)

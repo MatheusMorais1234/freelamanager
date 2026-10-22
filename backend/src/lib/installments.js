@@ -1,18 +1,6 @@
-// ============================================================
-// Parcelamento: como um valor vira N vencimentos
-// ------------------------------------------------------------
-// Duas regras curtas e densas, que estavam no meio das rotas de
-// pagamento. Nao dependem de Express nem de banco - sao contas
-// puras -, entao moram aqui, onde da para ler as duas sem
-// atravessar 400 linhas de rota.
-// ============================================================
+// Parcelamento
 
-/**
- * Divide um total em N parcelas SEM PERDER CENTAVO.
- * Trabalha em centavos (inteiros) porque 100 / 3 em ponto
- * flutuante daria 33.33 tres vezes = 99.99, sumindo um centavo.
- * A sobra vai para a primeira parcela.
- */
+// Divide em centavos pra nao sumir centavo; a sobra vai pra 1a parcela
 export function splitAmount(total, parts) {
   const cents = Math.round(total * 100);
   const base = Math.floor(cents / parts);
@@ -21,13 +9,12 @@ export function splitAmount(total, parts) {
   return Array.from({ length: parts }, (_, i) => (base + (i === 0 ? rest : 0)) / 100);
 }
 
-/** Mesma data, N meses adiante. Dia 31 em mes curto cai no ultimo dia. */
+// Soma N meses. 31 em mes curto cai no ultimo dia.
 export function addMonths(date, months) {
   const d = new Date(date);
   const day = d.getUTCDate();
 
-  // Vai para o dia 1 ANTES de trocar o mes: sem isso, 31/01 + 1
-  // mes viraria 03/03, porque "31 de fevereiro" transborda.
+  // vai pro dia 1 antes, senao 31/01 + 1 mes vira 03/03
   d.setUTCDate(1);
   d.setUTCMonth(d.getUTCMonth() + months);
 

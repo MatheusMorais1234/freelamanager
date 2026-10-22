@@ -1,15 +1,4 @@
-// ============================================================
-// Formulario de parcela (painel lateral)
-// ------------------------------------------------------------
-// Serve para criar e para editar. A diferenca entre os dois
-// casos e o parcelamento: criar pode gerar varias parcelas de
-// uma vez; editar mexe em uma parcela que ja existe e nao pode
-// transforma-la em varias.
-//
-// O estado do formulario mora na pagina (form / setForm): quem
-// salva e ela, e duplicar o estado aqui so criaria duas versoes
-// da mesma verdade.
-// ============================================================
+// Form de parcela (criar/editar). Parcelamento so na criacao. Estado fica na pagina.
 
 import { Loader2 } from "lucide-react";
 
@@ -35,17 +24,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet.jsx";
 
-/**
- * @param {boolean}  open
- * @param {Function} onOpenChange
- * @param {object}   editing    a parcela em edicao, ou null ao criar
- * @param {object}   form
- * @param {Function} setForm
- * @param {Array}    contracts  opcoes do seletor de contrato
- * @param {boolean}  busy       salvando
- * @param {string}   error      erro devolvido pelo backend
- * @param {Function} onSubmit
- */
 export function PaymentFormSheet({
   open,
   onOpenChange,
@@ -136,8 +114,6 @@ export function PaymentFormSheet({
             </div>
           </div>
 
-          {/* Parcelamento existe so na criacao: editar uma
-              parcela nao pode transforma-la em varias. */}
           {!editing && (
             <div className="space-y-2">
               <Label htmlFor="installments">Parcelas</Label>
@@ -178,8 +154,7 @@ export function PaymentFormSheet({
             <div className="space-y-2">
               <Label htmlFor="method">Forma</Label>
               <Select
-                // Sem data de recebimento nao ha forma de
-                // pagamento: o campo fica travado ate a data existir.
+                // sem data de recebimento nao tem forma
                 disabled={!form.paidAt}
                 value={form.method || undefined}
                 onValueChange={(method) => setForm({ ...form, method })}

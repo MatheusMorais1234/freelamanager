@@ -1,14 +1,4 @@
-// ============================================================
-// Relatorio de periodo
-// ------------------------------------------------------------
-// A parte delicada deste relatorio sao as DUAS janelas de tempo
-// que convivem nele: o recebido olha a data do pagamento, o a
-// receber e o atrasado olham o vencimento. Errar isso nao
-// derruba a API - so devolve numero errado, que e pior.
-//
-// As datas dos testes sao calculadas a partir de hoje. Datas
-// fixas fariam a suite passar hoje e quebrar sozinha em janeiro.
-// ============================================================
+// Recebido usa paidAt, a receber/atrasado usam dueDate. Datas relativas a hoje.
 
 import { describe, it, expect, afterEach } from "vitest";
 
@@ -26,7 +16,6 @@ afterEach(async () => {
   await apagarUsuarios(...usados.splice(0));
 });
 
-/** Data a N dias de hoje, no formato "AAAA-MM-DD". */
 function dia(offset) {
   const d = new Date();
   d.setUTCHours(0, 0, 0, 0);
@@ -76,8 +65,6 @@ describe("periodo", () => {
   });
 
   it("inclui o proprio dia final do periodo", async () => {
-    // O limite superior precisa ser o FIM do dia. Com a
-    // meia-noite, um pagamento do ultimo dia ficaria de fora.
     const { usuario, contrato } = await cenario();
     const hoje = dia(0);
 
@@ -97,8 +84,7 @@ describe("periodo", () => {
 
 describe("totais do periodo", () => {
   it("conta o recebido pela data do pagamento, nao pelo vencimento", async () => {
-    // Parcela que venceu ha 40 dias e foi paga ontem: entra no
-    // relatorio de agora, e nao no do vencimento.
+    // venceu ha 40 dias, pago ontem
     const { usuario, contrato } = await cenario({ amount: 1000 });
 
     await usuario.post("/payments", {
@@ -119,7 +105,6 @@ describe("totais do periodo", () => {
   it("separa a receber de atrasado, sem contar duas vezes", async () => {
     const { usuario, contrato } = await cenario({ amount: 1000 });
 
-    // Uma venceu ha 5 dias (atrasada), outra vence em 5 (a receber).
     await usuario.post("/payments", {
       contractId: contrato.id,
       amount: 300,
@@ -136,7 +121,6 @@ describe("totais do periodo", () => {
 
     expect(Number(totals.overdue.total)).toBe(300);
     expect(Number(totals.pending.total)).toBe(200);
-    // A prova que importa: nenhuma parcela entrou nos dois.
     expect(Number(totals.pending.total) + Number(totals.overdue.total)).toBe(500);
   });
 
@@ -187,7 +171,6 @@ describe("agrupamento por cliente", () => {
   it("soma por cliente e ordena por quem mais pagou", async () => {
     const { usuario, cliente, contrato } = await cenario({ amount: 1000 });
 
-    // Segundo cliente, com contrato proprio e valor maior.
     const outro = await usuario.post("/clients", { name: "Cliente Maior" });
     const contratoDoOutro = await usuario.post("/contracts", {
       clientId: outro.body.client.id,
@@ -300,7 +283,6 @@ describe("formas de recebimento", () => {
       paidAt: dia(-1),
       method: "BOLETO",
     });
-    // Em aberto: nao tem forma de pagamento ainda.
     await usuario.post("/payments", {
       contractId: contrato.id,
       amount: 1000,
@@ -310,13 +292,11 @@ describe("formas de recebimento", () => {
     const res = await usuario.get(`/reports?from=${dia(-10)}&to=${dia(0)}`);
     const { byMethod } = res.body.report;
 
-    // Ordenado pelo maior valor: BOLETO 900 antes de PIX 800.
     expect(byMethod[0].method).toBe("BOLETO");
     expect(Number(byMethod[0].total)).toBe(900);
     expect(byMethod[1].method).toBe("PIX");
     expect(Number(byMethod[1].total)).toBe(800);
     expect(byMethod[1].count).toBe(2);
-    // Formas sem nenhum recebimento nao aparecem na lista.
     expect(byMethod).toHaveLength(2);
   });
 
@@ -330,8 +310,6 @@ describe("formas de recebimento", () => {
       paidAt: dia(-1),
       method: "CARD",
     });
-    // Recebida SEM forma anotada: precisa cair em algum balde,
-    // senao a soma das formas ficaria menor que o total.
     await usuario.post("/payments", {
       contractId: contrato.id,
       amount: 150,

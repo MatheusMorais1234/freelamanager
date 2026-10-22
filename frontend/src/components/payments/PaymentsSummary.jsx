@@ -1,22 +1,10 @@
-// ============================================================
-// Resumo do topo da tela de pagamentos
-// ------------------------------------------------------------
-// Tres numeros que respondem a pergunta do freelancer antes de
-// ele olhar a tabela: quanto ja entrou, quanto ainda vem e
-// quanto passou do prazo.
-//
-// Os cartoes vem do StatCard compartilhado. A versao antiga
-// desta tela tinha um SummaryCard proprio que tingia so o
-// numero e deixava o icone sempre cinza - o cartao de "atrasado"
-// nao se distinguia do de "recebido" numa olhada rapida.
-// ============================================================
+// Cards de recebido / a receber / atrasado
 
 import { AlertCircle, CheckCircle2, Wallet } from "lucide-react";
 
 import { StatCard } from "@/components/StatCard.jsx";
 import { formatMoney } from "@/lib/format.js";
 
-/** @param {object} summary  { paid, pending, overdue } com total e count */
 export function PaymentsSummary({ summary }) {
   return (
     <section className="mb-4 grid gap-4 sm:grid-cols-3">

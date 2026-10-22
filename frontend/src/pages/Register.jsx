@@ -19,8 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card.jsx";
 
-// As mesmas exigencias que o backend aplica. Repetir aqui e so
-// para dar retorno imediato - quem decide continua sendo a API.
+// mesmas regras do backend, so pra feedback rapido
 const RULES = [
   { label: "Ao menos 8 caracteres", test: (v) => v.length >= 8 },
   { label: "Uma letra", test: (v) => /[a-zA-Z]/.test(v) },

@@ -1,14 +1,4 @@
-// ============================================================
-// Formulario de cliente - cadastro completo
-// ------------------------------------------------------------
-// Organizado em tres blocos (identificacao, contato, endereco)
-// porque um formulario de 20 campos em coluna unica cansa e
-// aumenta o erro de preenchimento.
-//
-// Os campos mudam conforme o tipo: pessoa fisica tem CPF e data
-// de nascimento; pessoa juridica tem CNPJ, nome fantasia e
-// inscricao estadual.
-// ============================================================
+// Form de cliente. PF tem CPF e nascimento, PJ tem CNPJ, fantasia e IE.
 
 import { useState } from "react";
 import { Loader2, Search } from "lucide-react";
@@ -61,7 +51,6 @@ export const EMPTY_CLIENT = {
   notes: "",
 };
 
-/** Rotulo de um bloco do formulario. */
 function Section({ title, children }) {
   return (
     <div className="space-y-4">
@@ -96,14 +85,11 @@ export default function ClientForm({ form, setForm, onSubmit, onCancel, busy, er
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
-  // Aplica a mascara enquanto o usuario digita, mantendo o
-  // cursor no fim. O valor cru (so digitos) e reconstruido na
-  // hora de enviar - a mascara nunca vai para o banco.
+  // a mascara e so visual, no submit volta pra digitos
   const setMasked = (key, mask) => (e) =>
     setForm({ ...form, [key]: mask(e.target.value) });
 
-  // Trocar de tipo limpa o documento: um CPF digitado nao vale
-  // como CNPJ e deixa-lo la so geraria erro de validacao.
+  // trocou o tipo, limpa o documento
   function changeType(type) {
     setForm({
       ...form,
@@ -130,7 +116,7 @@ export default function ClientForm({ form, setForm, onSubmit, onCancel, busy, er
       return;
     }
 
-    // Nao sobrescreve o que o usuario ja preencheu na mao.
+    // nao sobrescreve o que ja foi digitado
     setForm((prev) => ({
       ...prev,
       street: prev.street || found.street,
@@ -151,7 +137,7 @@ export default function ClientForm({ form, setForm, onSubmit, onCancel, busy, er
         </Alert>
       )}
 
-      {/* ---------------- Identificacao ---------------- */}
+      {/* Identificacao */}
       <Section title="Identificação">
         <Tabs value={form.type} onValueChange={changeType}>
           <TabsList className="grid w-full grid-cols-2">
@@ -220,7 +206,7 @@ export default function ClientForm({ form, setForm, onSubmit, onCancel, busy, er
         </div>
       </Section>
 
-      {/* ---------------- Contato ---------------- */}
+      {/* Contato */}
       <Section title="Contato">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="E-mail" htmlFor="email">
@@ -264,7 +250,7 @@ export default function ClientForm({ form, setForm, onSubmit, onCancel, busy, er
         </div>
       </Section>
 
-      {/* ---------------- Endereco ---------------- */}
+      {/* Endereco */}
       <Section title="Endereço">
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
@@ -337,7 +323,7 @@ export default function ClientForm({ form, setForm, onSubmit, onCancel, busy, er
         </div>
       </Section>
 
-      {/* ---------------- Observacoes ---------------- */}
+      {/* Observacoes */}
       <Section title="Observações">
         <Textarea
           rows={3}

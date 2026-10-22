@@ -1,14 +1,3 @@
-// ============================================================
-// Tela de pagamentos - as parcelas de cada contrato
-// ------------------------------------------------------------
-// Um contrato diz quanto foi COMBINADO. Esta tela diz quanto
-// ja ENTROU, o que vence adiante e o que passou do prazo.
-//
-// A pagina cuida SO das decisoes: o que buscar, o que filtrar e
-// o que mandar para a API. O desenho da tabela, do formulario e
-// dos cartoes de resumo mora em components/payments/ - assim
-// esta tela cabe na cabeca de uma vez so.
-// ============================================================
 
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -47,14 +36,10 @@ const EMPTY = {
 };
 
 export default function Payments() {
-  // O detalhe de um contrato manda para ca com ?contract=<id>.
-  // Guardar o recorte na URL (e nao so no estado) faz o link ser
-  // compartilhavel e o botao "voltar" do navegador funcionar.
+  // ?contract=<id> vem do detalhe do contrato
   const [searchParams, setSearchParams] = useSearchParams();
   const contractFilter = searchParams.get("contract");
 
-  // As tres chamadas partem juntas: uma nao depende da outra,
-  // entao esperar em fila so somaria latencia.
   const buscar = useCallback(
     () =>
       Promise.all([
@@ -85,18 +70,13 @@ export default function Payments() {
   const [busy, setBusy] = useState(false);
 
   const [toDelete, setToDelete] = useState(null);
-  // Id da linha sendo baixada, para travar so aquele botao e
-  // nao a tabela inteira.
   const [settlingId, setSettlingId] = useState(null);
 
   function openCreate() {
     setEditing(null);
     setForm({
       ...EMPTY,
-      // Vindo do detalhe de um contrato, ele ja vem escolhido.
       contractId: contractFilter || contracts[0]?.id || "",
-      // Vencimento sugerido: hoje. Melhor do que campo vazio -
-      // na maioria das vezes basta ajustar o dia.
       dueDate: toInputDate(new Date()),
     });
     setFormError("");
@@ -124,8 +104,6 @@ export default function Payments() {
     setFormError("");
     setBusy(true);
 
-    // Campos vazios viram null: o backend espera a ausencia do
-    // valor, nao uma string vazia.
     const payload = {
       contractId: form.contractId,
       description: form.description,
@@ -157,7 +135,6 @@ export default function Payments() {
     }
   }
 
-  /** Baixa rapida na tabela: "recebi por Pix", sem abrir o formulario. */
   async function settle(payment, method) {
     setSettlingId(payment.id);
 
@@ -172,7 +149,6 @@ export default function Payments() {
     }
   }
 
-  /** Desfaz a baixa - erro de clique acontece. */
   async function unsettle(payment) {
     setSettlingId(payment.id);
 
@@ -216,8 +192,6 @@ export default function Payments() {
     });
   }, [payments, filter, search, contractFilter]);
 
-  // Nome do contrato do recorte, para o aviso dizer de qual
-  // trabalho sao estas parcelas.
   const filteredContract = useMemo(
     () => contracts.find((c) => c.id === contractFilter),
     [contracts, contractFilter]
@@ -228,8 +202,6 @@ export default function Payments() {
     [filtered]
   );
 
-  // As contagens das abas seguem o recorte por contrato, senao
-  // a aba diria "Recebido (9)" e a tabela mostraria 2.
   const counts = useMemo(
     () =>
       countByStatus(
@@ -270,9 +242,6 @@ export default function Payments() {
 
       {summary && <PaymentsSummary summary={summary} />}
 
-      {/* Recorte vindo do detalhe de um contrato. Fica visivel e
-          com saida a um clique - filtro escondido e a maneira
-          mais rapida de fazer alguem achar que sumiram dados. */}
       {contractFilter && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
           <p className="min-w-0 truncate text-sm">

@@ -1,17 +1,4 @@
-// ============================================================
-// Massa de demonstracao
-// ------------------------------------------------------------
-// Roda com:  npm run seed:demo
-//
-// Cria (ou recria) UMA conta de demonstracao com clientes,
-// contratos e parcelas espalhadas nos ultimos meses, para quem
-// clonar o repositorio ver o sistema cheio - e nao quatro telas
-// vazias dizendo "nenhum registro ainda".
-//
-// IMPORTANTE: o script apaga e recria SO os dados dessa conta
-// de demonstracao. Como toda tabela e filtrada por userId, as
-// contas reais nao sao tocadas.
-// ============================================================
+// Dados de demonstracao: npm run seed:demo\nApaga e recria so a conta demo.
 
 import "dotenv/config";
 import bcrypt from "bcrypt";
@@ -21,9 +8,7 @@ import { prisma } from "../src/lib/prisma.js";
 const DEMO_EMAIL = "demo@freelamanager.com";
 const DEMO_SENHA = "demo1234";
 
-// Datas relativas a hoje. Guardar datas fixas no script faria a
-// demonstracao envelhecer: em seis meses todos os "proximos
-// vencimentos" ja estariam no passado.
+// datas relativas a hoje pra demo nao envelhecer
 const hoje = new Date();
 
 function dia(offsetDias) {
@@ -36,10 +21,6 @@ function mes(offsetMeses, diaDoMes = 10) {
   return new Date(hoje.getFullYear(), hoje.getMonth() + offsetMeses, diaDoMes);
 }
 
-// ------------------------------------------------------------
-// Clientes: uma mistura de PF e PJ, com endereco real o
-// suficiente para as telas de detalhe nao ficarem com buracos.
-// ------------------------------------------------------------
 const CLIENTES = [
   {
     type: "COMPANY",
@@ -140,14 +121,7 @@ const CLIENTES = [
   },
 ];
 
-// ------------------------------------------------------------
-// Contratos e suas parcelas.
-// A distribuicao e proposital: contratos concluidos e pagos nos
-// meses anteriores (para o grafico de faturamento ter barras),
-// contratos em andamento com parcelas a vencer, um prazo
-// estourando esta semana e uma parcela em atraso - que e o que
-// faz o alerta vermelho do painel aparecer.
-// ------------------------------------------------------------
+// Contratos variados: pagos, em andamento, um vencendo essa semana e um atrasado
 const CONTRATOS = [
   {
     cliente: "Verde Vale Alimentos S.A.",
@@ -212,7 +186,7 @@ const CONTRATOS = [
     dueDate: dia(20),
     parcelas: [
       { description: "Entrada", amount: "3700.00", dueDate: dia(-18), paidAt: dia(-18), method: "PIX" },
-      // Esta e a parcela que dispara o alerta de atraso no painel.
+      // essa e a atrasada (alerta do painel)
       { description: "Parcela final", amount: "3700.00", dueDate: dia(-9) },
     ],
   },
@@ -261,8 +235,6 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(DEMO_SENHA, 10);
 
-  // upsert: rodar o script duas vezes nao quebra por e-mail
-  // duplicado, so atualiza a conta que ja existe.
   const user = await prisma.user.upsert({
     where: { email: DEMO_EMAIL },
     update: { passwordHash },
@@ -270,8 +242,7 @@ async function main() {
     select: { id: true },
   });
 
-  // Limpa APENAS o que pertence a esta conta. Apagar os clientes
-  // derruba contratos e parcelas junto, pelo onDelete: Cascade.
+  // cascade leva contratos e parcelas
   await prisma.client.deleteMany({ where: { userId: user.id } });
 
   const idsPorNome = new Map();
@@ -295,8 +266,6 @@ async function main() {
         ...dados,
         userId: user.id,
         clientId: idsPorNome.get(cliente),
-        // Nested write: contrato e parcelas nascem na MESMA
-        // transacao. Se algo falhar no meio, nada e gravado.
         payments: {
           create: parcelas.map((p) => ({ ...p, userId: user.id })),
         },

@@ -1,32 +1,10 @@
-// ============================================================
-// FilterBar - abas de status com contagem + campo de busca
-// ------------------------------------------------------------
-// POR QUE EXISTE: a barra era identica em Contratos e
-// Pagamentos, linha por linha; so mudavam a lista de status e o
-// texto do placeholder.
-//
-// E consertava um defeito de layout: ui/tabs.jsx fixa a altura
-// da TabsList em h-8 (via group-data-horizontal). No celular as
-// cinco abas com contagem quebram para uma segunda linha e,
-// presas em 32px, ficavam cortadas. "h-auto flex-wrap" deixa a
-// lista crescer junto com o conteudo.
-// ============================================================
+// Abas de status + busca (contratos e pagamentos).\nh-auto flex-wrap pq no celular as abas quebram linha.
 
 import { Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input.jsx";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 
-/**
- * @param {string}   value      aba ativa ("ALL" ou um status)
- * @param {Function} onChange
- * @param {string[]} options    os status, sem o "ALL" (ele entra sozinho)
- * @param {object}   labels     { STATUS: "Rotulo" }
- * @param {object}   counts     { ALL: n, STATUS: n }
- * @param {string}   search
- * @param {Function} onSearch   recebe o texto ja pronto, nao o evento
- * @param {string}   placeholder
- */
 export function FilterBar({
   value,
   onChange,
