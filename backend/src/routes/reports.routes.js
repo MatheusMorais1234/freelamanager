@@ -1,4 +1,6 @@
-// GET /reports?from=&to=\n\nRecebido filtra por paidAt, a receber/atrasado por dueDate.\nParcela que venceu em jan e foi paga em mar conta como recebida em mar.
+// GET /reports?from=&to=
+// Recebido filtra por paidAt; a receber e atrasado, por dueDate.
+// Parcela que venceu em jan e foi paga em mar conta como recebida em mar.
 
 import { Router } from "express";
 

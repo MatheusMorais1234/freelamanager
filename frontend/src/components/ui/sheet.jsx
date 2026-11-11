@@ -39,17 +39,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        // O veu era bg-black/10: 1.18:1 contra a gaveta, quase
-        // nenhuma separacao. bg-black/40 leva o tema claro a
-        // 2.68:1.
-        //
-        // Tentei bg-foreground/20, sugerido por ser "dos dois
-        // temas": no escuro ele CLAREIA o fundo (--foreground e
-        // quase branco la), deixando o que esta atras mais
-        // luminoso que a propria gaveta - o contrario do que um
-        // veu deve fazer. Preto continua sendo a escolha certa;
-        // no tema escuro quem separa a gaveta e a borda dela,
-        // porque nao da para escurecer o que ja e escuro.
+        // preto e nao foreground: no tema escuro foreground clarearia o fundo
         "fixed inset-0 z-50 bg-black/40 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
